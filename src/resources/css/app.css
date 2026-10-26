@@ -1,0 +1,170 @@
+@import "tailwindcss";
+@import "./fonts-outfit.css";
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Breakpoint khusus buat TV ruang tunggu resolusi HD-ready (co: Samsung
+ * UA32FH4003R, 1366x768) -- dipakai di locations/display.blade.php &
+ * display-all.blade.php. SENGAJA bukan sekadar "di-zoom-out"/di-scale dari
+ * layar "lg:" (yang didesain buat monitor lebar DAN tinggi, mis. 1920x1080),
+ * karena TV ini lebarnya mirip breakpoint lg/xl tapi TINGGINYA jauh lebih
+ * pendek (cuma 768px) -- kalau cuma di-scale down proporsional, rasio
+ * ukuran antar elemen tetap sama seperti desain buat layar tinggi, jadi
+ * kepotong/numpuk vertikal. Rentang lebar 1180-1400px sengaja dibuat CUKUP
+ * LEBAR (bukan cuma persis 1366px) supaya tetap kena juga di laptop/monitor
+ * lawas beresolusi mirip (mis. 1280x800, 1360x768), bukan cuma 1 model TV
+ * ini doang. Dicek TINGGI (max-height) juga, bukan cuma lebar, biar TIDAK
+ * ikut kena di monitor lebar-tapi-tinggi (mis. ultrawide 1440p ke atas).
+ */
+@custom-variant tv (@media (min-width: 1180px) and (max-width: 1400px) and (max-height: 820px));
+
+@theme {
+    --font-sans:
+        "Instrument Sans", ui-sans-serif, system-ui, sans-serif,
+        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+        "Noto Color Emoji";
+
+    /* Font judul yang lebih playful, senada sama tipografi logo Papyrus Photo */
+    --font-display: "Baloo 2", "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+
+    /*
+     * Warna brand diambil dari logo Papyrus Photo (ungu/violet pastel).
+     * Di-override langsung di skala warna "blue" bawaan Tailwind supaya
+     * SEMUA kelas blue-* yang sudah dipakai di seluruh halaman (tombol,
+     * badge, link, border, termasuk varian dark:) otomatis ikut tema baru
+     * ini tanpa perlu mengubah satu-satu file blade.
+     */
+    --color-blue-50: #f8f3fc;
+    --color-blue-100: #f1e6f9;
+    --color-blue-200: #e2cef3;
+    --color-blue-300: #cdaae9;
+    --color-blue-400: #b281da;
+    --color-blue-500: #995ccc;
+    --color-blue-600: #813db8;
+    --color-blue-700: #6b3399;
+    --color-blue-800: #562a79;
+    --color-blue-900: #402159;
+    --color-blue-950: #281537;
+
+    /*
+     * Status "sukses" (hijau/emerald bawaan) di-retint ke mint pastel
+     * senada logo, tapi kontrasnya tetap dijaga supaya teks/badge masih
+     * gampang dibaca.
+     */
+    --color-green-50: #f1fbf8;
+    --color-green-100: #dcf5ee;
+    --color-green-200: #b3ebe0;
+    --color-green-300: #86e7d9;
+    --color-green-400: #52d1bd;
+    --color-green-500: #2fb59f;
+    --color-green-600: #1f9483;
+    --color-green-700: #1c766b;
+    --color-green-800: #1a5e56;
+    --color-green-900: #184d47;
+    --color-green-950: #092c29;
+
+    --color-emerald-50: #f1fbf8;
+    --color-emerald-100: #dcf5ee;
+    --color-emerald-200: #b3ebe0;
+    --color-emerald-300: #86e7d9;
+    --color-emerald-400: #52d1bd;
+    --color-emerald-500: #2fb59f;
+    --color-emerald-600: #1f9483;
+    --color-emerald-700: #1c766b;
+    --color-emerald-800: #1a5e56;
+    --color-emerald-900: #184d47;
+    --color-emerald-950: #092c29;
+
+    /*
+     * Purple bawaan Tailwind (dipakai untuk sebagian badge) di-retint ke
+     * varian pink-lavender supaya beda tipis dari brand utama (blue di
+     * atas) tapi masih senada palet logo.
+     */
+    --color-purple-50: #fdf3fb;
+    --color-purple-100: #fbe6f6;
+    --color-purple-200: #f6cceb;
+    --color-purple-300: #eda8db;
+    --color-purple-400: #de85c9;
+    --color-purple-500: #c95fb0;
+    --color-purple-600: #a8408f;
+    --color-purple-700: #863172;
+    --color-purple-800: #6b285c;
+    --color-purple-900: #55214a;
+    --color-purple-950: #33122c;
+
+    /*
+     * Palet pastel penuh dari logo Papyrus Photo, dipakai sebagai aksen
+     * dekoratif (garis "washi tape", badge, gradient) di seluruh halaman.
+     * Otomatis jadi utility class Tailwind v4, mis. bg-blush, text-mint.
+     */
+    --color-blush: #ffdaf0;
+    --color-dustyrose: #e1a7b2;
+    --color-lavender: #c5a4e8;
+    --color-skyblue: #70d1f9;
+    --color-mint: #86e7d9;
+    --color-periwinkle: #e0ebf7;
+    --color-cream: #fbf7cf;
+}
+
+[x-cloak] {
+    display: none !important;
+}
+
+/*
+ * Garis "washi tape" khas Papyrus Photo — strip warna-warni tipis yang
+ * mengulang motif kartu foto di logo. Dipakai sebagai aksen di atas
+ * navbar/header supaya brand langsung kerasa di semua halaman.
+ */
+.papyrus-tape {
+    height: 5px;
+    background: linear-gradient(
+        90deg,
+        var(--color-dustyrose) 0%,
+        var(--color-lavender) 16.6%,
+        var(--color-skyblue) 33.3%,
+        var(--color-mint) 50%,
+        var(--color-cream) 66.6%,
+        var(--color-blush) 83.3%,
+        var(--color-lavender) 100%
+    );
+}
+
+/*
+ * Motif lingkaran melingkar tipis, mengambil elemen swirl di sekeliling
+ * logo. Dipakai sebagai watermark dekoratif di area kosong (hero, footer).
+ */
+.papyrus-swirl-bg {
+    position: relative;
+    isolation: isolate;
+}
+.papyrus-swirl-bg::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.5;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cg fill='none' stroke='%23c5a4e8' stroke-width='1.5' opacity='0.35'%3E%3Ccircle cx='200' cy='200' r='120'/%3E%3Ccircle cx='200' cy='200' r='140'/%3E%3Ccircle cx='200' cy='200' r='160'/%3E%3C/g%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right -60px top -60px;
+    background-size: 320px 320px;
+}
+.dark .papyrus-swirl-bg::before {
+    opacity: 0.15;
+}
+
+/* Nama brand pakai font display + gradasi warna logo */
+.papyrus-brand {
+    font-family: var(--font-display);
+    font-weight: 700;
+    background: linear-gradient(90deg, var(--color-lavender), var(--color-dustyrose));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}

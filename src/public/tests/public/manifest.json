@@ -1,0 +1,25 @@
+{
+  "name": "Papyrus Photo Jogja - Antrian",
+  "short_name": "Papyrus Antrian",
+  "description": "Pantau nomor antrian dan dapatkan notifikasi saat giliran Anda dipanggil.",
+  "start_url": "/tickets/check",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/images/logo-papyrus.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/logo-papyrus.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

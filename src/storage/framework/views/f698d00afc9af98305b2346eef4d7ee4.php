@@ -1,0 +1,76 @@
+<?php if (isset($component)) { $__componentOriginal23a33f287873b564aaf305a1526eada4 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal23a33f287873b564aaf305a1526eada4 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.layout','data' => ['title' => 'Pilih Lokasi Kerja']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('layout'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['title' => 'Pilih Lokasi Kerja']); ?>
+    <div class="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center px-4 py-12">
+        <div class="max-w-lg w-full">
+            <div class="text-center mb-8">
+                <div class="w-14 h-14 mx-auto mb-4 rounded-2xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                    <svg class="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </div>
+                <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Pilih Lokasi Kerja</h1>
+                <p class="text-slate-500 dark:text-slate-400 mt-2">Pilih lokasi tempat Anda bertugas hari ini. Anda bisa berpindah lokasi kapan saja lewat tombol "Ganti Lokasi".</p>
+            </div>
+
+            <form method="POST" action="<?php echo e(route('operator.set-location')); ?>" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 space-y-4">
+                <?php echo csrf_field(); ?>
+                <?php if($locations->isEmpty()): ?>
+                    <p class="text-slate-500 dark:text-slate-400 text-center py-4">Belum ada lokasi aktif. Tambahkan lokasi dulu di panel admin.</p>
+                <?php else: ?>
+                    <div class="space-y-2">
+                        <?php $__currentLoopData = $locations; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $location): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                            <label class="flex items-center gap-3 border-2 border-slate-200 dark:border-slate-600 rounded-xl p-4 cursor-pointer hover:border-blue-300 dark:hover:border-blue-700 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50 dark:has-[:checked]:bg-blue-900/20 transition-colors">
+                                <input type="radio" name="location_id" value="<?php echo e($location->id); ?>" required class="text-blue-600">
+                                <span>
+                                    <span class="block font-semibold text-slate-900 dark:text-white"><?php echo e($location->name); ?></span>
+                                    <span class="block text-xs text-slate-500 dark:text-slate-400"><?php echo e($location->code); ?></span>
+                                </span>
+                            </label>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                    </div>
+
+                    
+                    <button type="submit" class="w-full bg-gradient-to-r from-lavender to-dustyrose hover:opacity-90 text-white py-3 rounded-xl font-semibold transition-colors">
+                        Simpan &amp; Lanjutkan
+                    </button>
+                <?php endif; ?>
+            </form>
+
+            <?php if(auth()->user()->isAdmin()): ?>
+                <div class="text-center mt-6">
+                    <a href="<?php echo e(route('admin.dashboard')); ?>" class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                        &larr; Kembali ke Panel Admin
+                    </a>
+                </div>
+            <?php else: ?>
+                <div class="text-center mt-6">
+                    <form method="POST" action="<?php echo e(route('logout')); ?>">
+                        <?php echo csrf_field(); ?>
+                        <button type="submit" class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                            &larr; Keluar
+                        </button>
+                    </form>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+ <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal23a33f287873b564aaf305a1526eada4)): ?>
+<?php $attributes = $__attributesOriginal23a33f287873b564aaf305a1526eada4; ?>
+<?php unset($__attributesOriginal23a33f287873b564aaf305a1526eada4); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal23a33f287873b564aaf305a1526eada4)): ?>
+<?php $component = $__componentOriginal23a33f287873b564aaf305a1526eada4; ?>
+<?php unset($__componentOriginal23a33f287873b564aaf305a1526eada4); ?>
+<?php endif; ?>
+<?php /**PATH /var/www/html/resources/views/operator/choose-location.blade.php ENDPATH**/ ?>

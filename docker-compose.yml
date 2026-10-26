@@ -1,0 +1,90 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: papyrus-antrian-app
+    restart: unless-stopped
+    ports:
+      - "8090:80"
+      - "8493:443"
+    volumes:
+      - ./src:/var/www/html
+      - ./docker/nginx.conf:/etc/nginx/http.d/default.conf:ro
+      - ./docker/certs:/etc/nginx/certs:ro
+    depends_on:
+      - db
+    environment:
+      APP_NAME: "Antrian Papyrus Photo Jogja"
+      APP_ENV: production
+      APP_KEY: "base64:UP2Ir9QSGsf84kvlU2NbEGGk+BvWlwkzkR4BOBdhABA="
+      APP_DEBUG: "false"
+      APP_URL: "https://antrian-papyrus-jogja.duckdns.org:8493"
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_DATABASE: "papyrus_antrian"
+      DB_USERNAME: "papyrus_user"
+      DB_PASSWORD: "#Td500mblue!"
+      SESSION_DRIVER: database
+      QUEUE_CONNECTION: database
+      CACHE_STORE: database
+      BROADCAST_CONNECTION: reverb
+      REVERB_APP_ID: "antriyuk"
+      REVERB_APP_KEY: "antriyuklocalkey"
+      REVERB_APP_SECRET: "antriyuklocalsecret"
+      REVERB_HOST: "0.0.0.0"
+      REVERB_PORT: "8080"
+      REVERB_SCHEME: "http"
+      VITE_REVERB_APP_KEY: "antriyuklocalkey"
+      VITE_REVERB_HOST: "antrian-papyrus-jogja.duckdns.org"
+      VITE_REVERB_PORT: "8493"
+      VITE_REVERB_SCHEME: "https"
+      VAPID_PUBLIC_KEY: "BDUnIN9baNKzF71H7MLVf6iRwEYfoPHkwuddehpgQxoUglpDFDqIMoe2_ztFdkn8ADppv_i2BJaPM5Qtnd-wZpI"
+      VAPID_PRIVATE_KEY: "CQCo9ax_xGOkUjCEoXmIGSsMqiVI2rKJ-JLXhPHmckQ"
+      VAPID_SUBJECT: "https://antrian-papyrus-jogja.duckdns.org:8493"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/up"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - papyrus-net
+
+  db:
+    image: mysql:8.0
+    container_name: papyrus-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: "papyrus_antrian"
+      MYSQL_USER: "papyrus_user"
+      MYSQL_PASSWORD: "#Td500mblue!"
+      MYSQL_ROOT_PASSWORD: "#Td500mblue!"
+    volumes:
+      - papyrus-db-data:/var/lib/mysql
+    networks:
+      - papyrus-net
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: papyrus-phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 64M
+    ports:
+      - "127.0.0.1:8092:80"
+    depends_on:
+      - db
+    networks:
+      - papyrus-net
+
+networks:
+  papyrus-net:
+    driver: bridge
+
+volumes:
+  app_storage:
+  papyrus-db-data:

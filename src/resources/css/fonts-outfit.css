@@ -1,0 +1,45 @@
+/*
+ * Font "Outfit" di-self-host (bukan dari Google/Bunny Fonts CDN) --
+ * sesuai file desain final (display_papyrus_antrian_fixed.zip), yang
+ * menyertakan file .woff2 Outfit-nya sendiri di folder fonts/.
+ *
+ * File .woff2 disalin ke public/fonts/outfit/ (lihat SKILL/README kalau
+ * butuh re-copy), dan folder itu WAJIB ada di server produksi -- kalau
+ * di-deploy ulang dari git, pastikan public/fonts/outfit/ ikut ter-commit
+ * (biasanya public/ TIDAK di-gitignore, jadi seharusnya aman).
+ */
+@font-face {
+    font-family: 'Outfit';
+    font-style: normal;
+    font-weight: 300;
+    font-display: swap;
+    src: url('/fonts/outfit/outfit-latin-300-normal.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Outfit';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/fonts/outfit/outfit-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Outfit';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('/fonts/outfit/outfit-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Outfit';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('/fonts/outfit/outfit-latin-700-normal.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Outfit';
+    font-style: normal;
+    font-weight: 800;
+    font-display: swap;
+    src: url('/fonts/outfit/outfit-latin-800-normal.woff2') format('woff2');
+}

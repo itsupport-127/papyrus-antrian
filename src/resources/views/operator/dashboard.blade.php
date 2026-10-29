@@ -866,6 +866,130 @@
             paint();
         })();
 
+        // Tombol "Suara panggilan: ON/OFF" (per komputer, disimpan di browser). Bawaan OFF.
+        (function setupOperatorVoiceToggle() {
+            const btn = document.getElementById('btn-toggle-operator-voice');
+            if (!btn) return;
+            const stateEl = document.getElementById('operator-voice-state');
+            const paint = () => {
+                const on = operatorVoiceEnabled();
+                stateEl.textContent = on ? 'ON' : 'OFF';
+                btn.style.opacity = on ? '1' : '0.6';
+            };
+            btn.addEventListener('click', () => {
+                const turnOn = !operatorVoiceEnabled();
+                try { localStorage.setItem('papyrusOperatorVoice', turnOn ? 'on' : 'off'); } catch (e) {}
+                paint();
+                if (turnOn) (window.papyrusSpeak || ((t, cb) => cb()))('Suara panggilan di komputer ini aktif.');
+            });
+            paint();
+        })();
+
+        // ============ "Aktif terus": bel & notifikasi tidak terlewat saat Chrome di-minimize ============
+        // Chrome menurunkan prioritas / membekukan tab yang tersembunyi (di-minimize, tertutup jendela lain,
+        // atau lama tidak dipakai). Akibatnya bunyi baru keluar setelah tab diklik lagi. Yang dilakukan di sini:
+        //  1) menahan Web Lock -> tab dengan lock tidak dibekukan Chrome;
+        //  2) nada 30 Hz sangat kecil (praktis tak terdengar) -> tab dianggap "sedang memutar audio" sehingga
+        //     timer-nya tidak di-throttle (polling tetap tiap 5 detik) -- Chrome menampilkan ikon speaker di tab;
+        //  3) Screen Wake Lock saat tab terlihat -> layar tidak tidur sendiri;
+        //  4) begitu tab dibuka lagi: bangunkan suara & ambil data terbaru langsung;
+        //  5) kalau suara masih terkunci browser (belum ada klik sama sekali), muncul pita pengingat.
+        // Catatan: pengaman ini TIDAK bisa melawan "Memory Saver / Energy Saver" Chrome yang membuang tab --
+        // untuk itu tambahkan situs ini ke "Always keep these sites active" (lihat panduan).
+        (function setupKeepAlive() {
+            const KEY = 'papyrusKeepAlive';
+            const enabled = () => { try { return localStorage.getItem(KEY) !== 'off'; } catch (e) { return true; } };
+            const btn = document.getElementById('btn-toggle-keepalive');
+            const stateEl = document.getElementById('keepalive-state');
+            let osc = null, gain = null, wakeLock = null, lockStarted = false, banner = null;
+
+            function paint() {
+                if (!btn) return;
+                stateEl.textContent = enabled() ? 'ON' : 'OFF';
+                btn.style.opacity = enabled() ? '1' : '0.6';
+            }
+
+            async function acquireWakeLock() {
+                try {
+                    if ('wakeLock' in navigator && !wakeLock && !document.hidden) {
+                        wakeLock = await navigator.wakeLock.request('screen');
+                        wakeLock.addEventListener('release', () => { wakeLock = null; });
+                    }
+                } catch (e) { /* tidak didukung / ditolak -> abaikan */ }
+            }
+
+            function showBanner(show) {
+                if (show && !banner) {
+                    banner = document.createElement('button');
+                    banner.type = 'button';
+                    banner.textContent = 'Suara belum aktif. Klik di mana saja supaya bel & notifikasi berbunyi.';
+                    banner.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:9999;background:#7c3aed;color:#fff;padding:10px 14px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.25);border:0;cursor:pointer';
+                    banner.addEventListener('click', () => start());
+                    document.body.appendChild(banner);
+                } else if (!show && banner) {
+                    banner.remove();
+                    banner = null;
+                }
+            }
+
+            function start() {
+                if (!enabled()) return;
+                const ctx = getPapyrusAudioCtx(); // membuat/membangunkan AudioContext (butuh klik pertama)
+                if (!lockStarted && navigator.locks) {
+                    lockStarted = true;
+                    navigator.locks.request('papyrus-keepalive', () => new Promise(() => {})).catch(() => { lockStarted = false; });
+                }
+                if (ctx && ctx.state === 'running' && !osc) {
+                    osc = ctx.createOscillator();
+                    gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = 30;
+                    gain.gain.value = 0.004;
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                }
+                acquireWakeLock();
+                showBanner(!ctx || ctx.state !== 'running');
+            }
+
+            function stop() {
+                try { osc && osc.stop(); } catch (e) {}
+                osc = null; gain = null;
+                try { wakeLock && wakeLock.release(); } catch (e) {}
+                wakeLock = null;
+                showBanner(false);
+            }
+
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    const turnOn = !enabled();
+                    try { localStorage.setItem(KEY, turnOn ? 'on' : 'off'); } catch (e) {}
+                    paint();
+                    turnOn ? start() : stop();
+                });
+            }
+
+            ['click', 'touchstart', 'keydown'].forEach((ev) => document.addEventListener(ev, () => start(), { passive: true }));
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) {
+                    start();
+                    if (typeof refreshDashboard === 'function') refreshDashboard(); // susul data yang terlewat
+                }
+            });
+            // Jaga-jaga: context bisa di-suspend lagi oleh browser -> bangunkan & pasang ulang nadanya.
+            setInterval(() => {
+                if (!enabled()) return;
+                const ctx = window._papyrusAudioCtx;
+                if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+                if (ctx && ctx.state === 'running' && !osc) start();
+                showBanner(!ctx || ctx.state !== 'running');
+            }, 15000);
+
+            paint();
+            start();
+        })();
+
         // Tombol aktifkan notifikasi (biar tetap kedengaran/notif walau
         // operator lagi pindah tab/aplikasi lain, selama browser tetap terbuka).
         const btnEnableOperatorNotif = document.getElementById('btn-enable-operator-notif');
@@ -914,8 +1038,27 @@
         let operatorAnnounceQueue = [];
         let operatorAnnounceBusy = false;
 
-        function announceCalledTicketOperator(ticketNumber, counterName, kind = 'calling', isRecall = false) {
+        // Suara pemanggilan (TTS) di komputer operator BAWAAN-NYA MATI: yang mengucapkan nomor cukup layar TV,
+        // kalau operator juga ikut bicara hasilnya terdengar DOBEL ("dua suara pemanggilan"). Bisa dinyalakan
+        // per komputer lewat tombol "Suara panggilan" (mis. fotografer yang jauh dari TV).
+        function operatorVoiceEnabled() {
+            try { return localStorage.getItem('papyrusOperatorVoice') === 'on'; } catch (e) { return false; }
+        }
+
+        // Satu siaran (event_at sama) hanya diproses SEKALI di perangkat ini -- siaran kembar tidak bikin bel dobel.
+        // Panggil Ulang = siaran baru (event_at baru) jadi tetap bunyi.
+        const operatorSeenEvents = new Set();
+        function operatorAlreadyHandled(eventKey) {
+            if (!eventKey) return false;
+            if (operatorSeenEvents.has(eventKey)) return true;
+            operatorSeenEvents.add(eventKey);
+            if (operatorSeenEvents.size > 200) operatorSeenEvents.delete(operatorSeenEvents.values().next().value);
+            return false;
+        }
+
+        function announceCalledTicketOperator(ticketNumber, counterName, kind = 'calling', isRecall = false, eventKey = null) {
             if (!ticketNumber) return;
+            if (operatorAlreadyHandled(eventKey)) return;
             // Bel/"ting ting" (beep) TETAP bunyi buat SEMUA panggilan, baik
             // yang pertama kali maupun Panggil Ulang -- yang dihilangkan
             // CUMA suara TTS "silakan menuju ke ..."-nya. Notifikasi push ke
@@ -928,6 +1071,7 @@
             // di sana TTS tetap bunyi. Panggil Ulang (isRecall === true) tetap
             // dapet TTS penuh seperti sebelumnya.
             if (kind === 'calling' && !isRecall) return;
+            if (!operatorVoiceEnabled()) return; // TV yang bicara; di sini cukup bel
             if (!('speechSynthesis' in window)) return;
             counterName = counterName ? counterName.replace(/\s*&\s*/g, ' dan ') : counterName; // "&" dibaca "dan" (TTS bisa membacanya "ampersand" atau melewatinya)
             const spoken = spokenTicketNumber(ticketNumber);
@@ -1002,14 +1146,14 @@
                 // bunyi 2x tiap ada tiket baru saat Reverb menyala.
                 .listen('.ticket.created', refreshDashboard)
                 .listen('.ticket.called', (e) => {
-                    announceCalledTicketOperator(e.ticket?.ticket_number, e.counter?.name ?? fallbackDestinationName(e.ticket?.stage), 'calling', e.is_recall === true || e.ticket?.stage !== 'registration');
+                    announceCalledTicketOperator(e.ticket?.ticket_number, e.counter?.name ?? fallbackDestinationName(e.ticket?.stage), 'calling', e.is_recall === true || e.ticket?.stage !== 'registration', e.event_at);
                     refreshDashboard();
                 })
                 .listen('.ticket.status.changed', (e) => {
                     // "Siap-siap" (preparing) ikut dibunyiin, sama kayak
                     // display TV -- lihat catatan di announceCalledTicketOperator().
                     if (e.ticket?.status === 'preparing') {
-                        announceCalledTicketOperator(e.ticket?.ticket_number, e.counter?.name, 'preparing');
+                        announceCalledTicketOperator(e.ticket?.ticket_number, e.counter?.name, 'preparing', false, e.event_at);
                     }
                     refreshDashboard();
                 })
@@ -1169,6 +1313,12 @@
                         <button type="button" id="btn-toggle-activity-ting" title="Bunyikan bel &quot;ting&quot; tiap ada aktivitas (daftar tunggu, siap-siap, sesi foto, dst)" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold transition-colors">
                             <span id="activity-ting-icon" style="display:inline-flex;"><x-papyrus-icon name="bell" /></span>
                             <span>Bel aktivitas: <span id="activity-ting-state">ON</span></span>
+                        </button>
+                        <button type="button" id="btn-toggle-operator-voice" title="Ucapkan nomor yang dipanggil juga di komputer ini. Bawaannya OFF karena layar TV sudah mengucapkannya (kalau dua-duanya bunyi jadi terdengar dobel)." class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold transition-colors">
+                            <x-papyrus-icon name="speaker-wave" size="1.15em" /><span>Suara panggilan: <span id="operator-voice-state">OFF</span></span>
+                        </button>
+                        <button type="button" id="btn-toggle-keepalive" title="Jaga halaman ini tetap aktif walau Chrome di-minimize atau pindah tab, supaya bel dan notifikasi tidak terlewat. Tab akan menampilkan ikon speaker (itu normal)." class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold transition-colors">
+                            <x-papyrus-icon name="bell" size="1.15em" /><span>Aktif terus: <span id="keepalive-state">ON</span></span>
                         </button>
                         <button type="button" id="btn-enable-operator-notif" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-lavender/15 hover:bg-lavender/25 text-lavender rounded-lg text-xs font-semibold transition-colors" title="Aktifkan suara & notifikasi tiket baru">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>

@@ -703,8 +703,17 @@
             window._displaySpoken.forEach((t, k) => { if (_nowTs - t > 120000) window._displaySpoken.delete(k); });
             const _guardKey = eventKey ? ('ev:' + ticketNumber + ':' + eventKey) : ('tx:' + text);
             const _guardWin = eventKey ? 60000 : 15000;
+            // Polling kadang LEBIH CEPAT dari WebSocket: kalau polling sudah mengucapkan nomor ini, event
+            // WebSocket yang menyusul beberapa detik kemudian tidak boleh mengucapkannya lagi (dobel).
+            window._displayPollSpoken = window._displayPollSpoken || new Map();
+            const _tkKey = ticketNumber + '|' + kind;
+            if (eventKey) {
+                const _polled = window._displayPollSpoken.get(_tkKey);
+                if (_polled && _nowTs - _polled < 6000) return;
+            }
             if (window._displaySpoken.has(_guardKey) && _nowTs - window._displaySpoken.get(_guardKey) < _guardWin) return;
             window._displaySpoken.set(_guardKey, _nowTs);
+            if (!eventKey) window._displayPollSpoken.set(_tkKey, _nowTs);
 
             // Jaga-jaga kalau banyak banget panggilan numpuk berturut-turut
             // (jarang terjadi, tapi kalau iya jangan sampai antriannya

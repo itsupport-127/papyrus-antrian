@@ -3549,10 +3549,19 @@
                             </div>
                             <div class="p-6 border-b border-slate-100 dark:border-slate-700">
                                 <form method="GET" action="{{ route('operator.dashboard') }}#tab-pelanggan" class="space-y-4">
-                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                                         <div class="md:col-span-2">
                                             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Cari</label>
-                                            <input type="text" name="bq" value="{{ $bookingSearch }}" placeholder="Nama, telepon, email, kode order, atau nomor tiket..." class="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-4 py-2 bg-white dark:bg-slate-700 dark:text-white text-sm">
+                                            <input type="text" name="bq" value="{{ $bookingSearch }}" placeholder="Nama, telepon, kode order, paket, nomor tiket, atau nama petugas..." class="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-4 py-2 bg-white dark:bg-slate-700 dark:text-white text-sm">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Petugas</label>
+                                            <select name="bstaff" class="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-700 dark:text-white text-sm">
+                                                <option value="" {{ !$bookingStaff ? 'selected' : '' }}>Semua Petugas</option>
+                                                @foreach($staffOptions as $st)
+                                                    <option value="{{ $st->id }}" {{ (int) $bookingStaff === $st->id ? 'selected' : '' }}>{{ $st->name }}</option>
+                                                @endforeach
+                                            </select>
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tanggal</label>
@@ -3566,7 +3575,7 @@
                                         </label>
                                         <div class="flex items-center gap-2">
                                             <button type="submit" class="px-4 py-2 bg-gradient-to-r from-lavender to-dustyrose hover:opacity-90 text-white rounded-lg text-sm font-semibold transition-colors">Terapkan Filter</button>
-                                            @if($bookingSearch || $bookingDate !== now()->toDateString())
+                                            @if($bookingSearch || $bookingStaff || $bookingDate !== now()->toDateString())
                                                 <a href="{{ route('operator.dashboard') }}#tab-pelanggan" class="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-semibold transition-colors">Reset</a>
                                             @endif
                                         </div>
@@ -3586,6 +3595,7 @@
                                                 <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Paket</th>
                                                 <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
                                                 <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider min-w-[180px]">Waktu</th>
+                                                <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Dilayani Oleh</th>
                                                 <th class="text-right px-5 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Aksi</th>
                                             </tr>
                                         </thead>
@@ -3642,6 +3652,14 @@
                                                     <td class="px-5 py-3.5 text-sm" data-label="Waktu">
                                                         @php $waktuTicket = $booking->ticket; @endphp
                                                         @include('operator.partials.waktu-cell')
+                                                    </td>
+                                                    <td class="px-5 py-3.5 text-xs text-slate-600 dark:text-slate-300 min-w-[170px] align-top" data-label="Dilayani Oleh">
+                                                        @if($booking->ticket)
+                                                            @php $dilayaniTicket = $booking->ticket; @endphp
+                                                            @include('operator.partials.dilayani-cell')
+                                                        @else
+                                                            <span class="text-slate-400 dark:text-slate-500">-</span>
+                                                        @endif
                                                     </td>
                                                     <td class="px-5 py-3.5 text-right rt-actions" data-label="Aksi">
                                                         <div class="flex items-center justify-end gap-2">
@@ -3701,10 +3719,10 @@
                             </div>
                             <div class="p-6 border-b border-slate-100 dark:border-slate-700">
                                 <form method="GET" action="{{ route('operator.dashboard') }}#tab-pelanggan" class="space-y-4">
-                                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                                         <div>
                                             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Cari</label>
-                                            <input type="text" name="q" value="{{ $custSearch }}" placeholder="Nama, telepon, email, atau no. tiket..." class="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-4 py-2 bg-white dark:bg-slate-700 dark:text-white text-sm">
+                                            <input type="text" name="q" value="{{ $custSearch }}" placeholder="Nama, telepon, nomor tiket, isi order, atau nama petugas..." class="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-4 py-2 bg-white dark:bg-slate-700 dark:text-white text-sm">
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Status</label>
@@ -3731,6 +3749,15 @@
                                             </select>
                                         </div>
                                         <div>
+                                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Petugas</label>
+                                            <select name="staff" class="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-700 dark:text-white text-sm">
+                                                <option value="" {{ !$custStaff ? 'selected' : '' }}>Semua Petugas</option>
+                                                @foreach($staffOptions as $st)
+                                                    <option value="{{ $st->id }}" {{ (int) $custStaff === $st->id ? 'selected' : '' }}>{{ $st->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div>
                                             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tanggal</label>
                                             <input type="date" name="date" id="cust-date-input" value="{{ $custDate !== 'all' ? $custDate : '' }}" class="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-700 dark:text-white text-sm">
                                         </div>
@@ -3742,7 +3769,7 @@
                                         </label>
                                         <div class="flex items-center gap-2">
                                             <button type="submit" class="px-4 py-2 bg-gradient-to-r from-lavender to-dustyrose hover:opacity-90 text-white rounded-lg text-sm font-semibold transition-colors">Terapkan Filter</button>
-                                            @if($custSearch || $custStatus || $custStage || $custDate !== now()->toDateString())
+                                            @if($custSearch || $custStatus || $custStage || $custStaff || $custDate !== now()->toDateString())
                                                 <a href="{{ route('operator.dashboard') }}#tab-pelanggan" class="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-semibold transition-colors">Reset</a>
                                             @endif
                                         </div>

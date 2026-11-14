@@ -35,7 +35,7 @@
 
                     <div>
                         <label class="{{ $labelCls }}">Cari</label>
-                        <input type="text" name="search" value="{{ $search }}" placeholder="Cari nama atau no. telepon..." class="w-64 {{ $inputCls }}">
+                        <input type="text" name="search" value="{{ $search }}" placeholder="Cari nama, telepon, email, nomor tiket, kode order, isi order, atau nama petugas..." class="w-80 {{ $inputCls }}">
                     </div>
 
                     <div>

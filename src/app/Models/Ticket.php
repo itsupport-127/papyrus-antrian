@@ -47,6 +47,7 @@ class Ticket extends Model
         'ready_for_edit_at',
         'select_queued_at',
         'select_called_at',
+        'select_by',
         'select_started_at',
         'edit_eta_date',
         'edit_note',
@@ -180,6 +181,12 @@ class Ticket extends Model
     public function registeredBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'registered_by');
+    }
+
+    /** CS yang menangani tahap Pilih Foto (khusus reservasi). */
+    public function selectedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'select_by');
     }
 
     public function photographedBy(): BelongsTo
@@ -719,7 +726,13 @@ class Ticket extends Model
             // di-skip/dibatalkan SEBELUM sempat dilayani (supaya tetap ada
             // angka, bukan '-').
             $seg('photo_wait', 'Tunggu Foto', $this->registration_completed_at, $this->photo_served_at ?? $this->photo_called_at),
-            $seg('photo_session', 'Sesi Foto', $this->photo_served_at, $this->editing_started_at ?? $this->photo_completed_at),
+            // Reservasi: Sesi Foto berhenti saat masuk antrian Pilih Foto (bukan saat pembayaran), supaya
+            // waktu Pilih Foto tidak ikut terhitung di "Sesi Foto".
+            $seg('photo_session', 'Sesi Foto', $this->photo_served_at, $this->select_queued_at ?? $this->editing_started_at ?? $this->photo_completed_at),
+            ...($this->select_queued_at ? [
+                $seg('select_wait', 'Tunggu Pilih Foto', $this->select_queued_at, $this->select_started_at ?? $this->select_called_at ?? $this->select_done_at),
+                $seg('selecting', 'Pilih Foto', $this->select_started_at, $this->select_done_at),
+            ] : []),
             $seg('editing', 'Edit Foto', $this->editing_started_at, $this->photo_completed_at),
             $seg('payment_wait', 'Tunggu Bayar', $this->photo_completed_at, $this->payment_served_at ?? $this->payment_called_at ?? $this->payment_completed_at),
             // Segmen baru -- sebelumnya rentang payment_served_at s/d tiket
@@ -747,6 +760,7 @@ class Ticket extends Model
         return [
             ['label' => 'CS', 'user' => $this->registeredBy, 'segments' => ['registration']],
             ['label' => 'Fotografer', 'user' => $this->photographedBy, 'segments' => ['photo_session']],
+            ['label' => 'CS (Pilih Foto)', 'user' => $this->selectedBy, 'segments' => ['select_wait', 'selecting']],
             ['label' => 'Editor', 'user' => $this->editedBy, 'segments' => ['editing']],
             ['label' => 'Kasir', 'user' => $this->paidBy, 'segments' => ['payment_wait', 'payment_processing']],
         ];

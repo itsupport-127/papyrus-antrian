@@ -600,8 +600,44 @@ class AdminController extends Controller
             ->groupBy('customer_phone');
 
         if ($search !== '') {
-            $query->having('customer_phone', 'like', "%{$search}%")
-                ->orHaving('customer_name', 'like', "%{$search}%");
+            // Cari APA SAJA yang menempel di tiket pelanggan itu: nama, telepon, email, nomor antrian,
+            // kode order (PJG-... maupun kode yang diketik di form reservasi), isi order/catatan, paket,
+            // kategori, lokasi, dan nama staf di tiap tahap. Hasilnya = daftar PELANGGAN (per nomor telepon)
+            // yang punya minimal satu tiket cocok.
+            $like = "%{$search}%";
+            $idSearch = null;
+            if (preg_match('/^PJG-?0*(\d+)$/i', $search, $m)) {
+                $idSearch = (int) $m[1];
+            } elseif (ctype_digit($search)) {
+                $idSearch = (int) $search;
+            }
+
+            $matchingPhones = Ticket::query()
+                ->select('customer_phone')
+                ->whereNotNull('customer_phone')
+                ->where(function ($q) use ($like, $idSearch) {
+                    $q->where('customer_name', 'like', $like)
+                        ->orWhere('customer_phone', 'like', $like)
+                        ->orWhere('customer_email', 'like', $like)
+                        ->orWhere('ticket_number', 'like', $like)
+                        ->orWhere('notes', 'like', $like)
+                        ->orWhereHas('serviceCategory', fn ($c) => $c->where('name', 'like', $like))
+                        ->orWhereHas('location', fn ($l) => $l->where('name', 'like', $like)->orWhere('code', 'like', $like))
+                        ->orWhereHas('booking', fn ($b) => $b->where('order_code', 'like', $like)
+                            ->orWhere('booking_code', 'like', $like)
+                            ->orWhere('package_name', 'like', $like)
+                            ->orWhere('notes', 'like', $like));
+
+                    foreach (['registeredBy', 'photographedBy', 'selectedBy', 'editedBy', 'paidBy', 'servedBy'] as $rel) {
+                        $q->orWhereHas($rel, fn ($u) => $u->where('name', 'like', $like));
+                    }
+
+                    if ($idSearch !== null) {
+                        $q->orWhere('id', $idSearch);
+                    }
+                });
+
+            $query->whereIn('customer_phone', $matchingPhones);
         }
 
         // Ringkasan (jumlah pelanggan & total order dalam filter yang sama).

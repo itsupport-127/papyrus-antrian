@@ -21,11 +21,12 @@
     $wkStaffMap = [
         'registration' => ['registeredBy', 'CS'],
         'photo_session' => ['photographedBy', 'Fotografer'],
+        'selecting' => ['selectedBy', 'CS'],
         'editing' => ['editedBy', 'Editor'],
         'payment_processing' => ['paidBy', 'Kasir'],
     ];
     $wkLabels = ['payment_processing' => 'Bayar'];
-    $wkWaiting = ['photo_wait', 'payment_wait'];
+    $wkWaiting = ['photo_wait', 'select_wait', 'payment_wait'];
 @endphp
 @if(!$waktuTicket || !$waktu)
     <span class="text-slate-400 dark:text-slate-500">-</span>

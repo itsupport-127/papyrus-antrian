@@ -146,13 +146,16 @@ class OperatorController extends Controller
         // supaya konsisten dengan tampilan CS & Kasir — tapi tombol aksi
         // (Panggil/Batalkan/dst.) tetap cuma untuk CS & Kasir/Admin lewat
         // $canManageBookings di bawah.
-        [$custTickets, $custSearch, $custStatus, $custStage, $custDate] = $this->filteredCustomerTickets($request, $location, $scopeLocationIds);
+        [$custTickets, $custSearch, $custStatus, $custStage, $custDate, $custStaff] = $this->filteredCustomerTickets($request, $location, $scopeLocationIds);
         $canManageBookings = $user->isOperator() || $user->isAdmin();
+        // Pilihan filter "Petugas" di Data Pelanggan (semua staf yang bisa menangani tiket).
+        $staffOptions = User::whereIn('role', ['operator', 'fotografer', 'admin'])->orderBy('name')->get(['id', 'name', 'role']);
         $bookingSearch = '';
         $bookingDate = now()->toDateString();
+        $bookingStaff = 0;
         $custBookings = null;
         if (in_array('customers', $permissions, true)) {
-            [$custBookings, $bookingSearch, $bookingDate] = $this->filteredCustomerBookings($request, $location, $scopeLocationIds);
+            [$custBookings, $bookingSearch, $bookingDate, $bookingStaff] = $this->filteredCustomerBookings($request, $location, $scopeLocationIds);
         }
 
         // Semua reservasi yang belum selesai sesuai scope.
@@ -250,8 +253,8 @@ class OperatorController extends Controller
             'activityKeys', 'reminderPayload',
             'location', 'locations', 'counter', 'counters', 'waitingByStage', 'preparingTickets', 'studioCallingTickets', 'editingInProgressTickets',
             'todayStats', 'todayBookings', 'custTickets', 'custBookings',
-            'custSearch', 'custStatus', 'custStage', 'custDate',
-            'bookingSearch', 'bookingDate',
+            'custSearch', 'custStatus', 'custStage', 'custDate', 'custStaff',
+            'bookingSearch', 'bookingDate', 'bookingStaff', 'staffOptions',
             'currentTicket', 'counterMessage', 'isFotografer', 'isCsKasir', 'selectingTickets', 'photoSelectMinutes',
             'permissions', 'canManageBookings', 'serviceCategories', 'bookingLocations',
             'readyForEditTickets', 'editingTickets', 'handoffTickets', 'pendingEditTickets'
@@ -1313,6 +1316,7 @@ class OperatorController extends Controller
             return back()->with('error', 'Tiket ini tidak sedang menunggu dipanggil untuk Pilih Foto.');
         }
 
+        $ticket->select_by ??= auth()->id(); // CS pertama yang menangani; ikut tersimpan oleh update() di bawah
         $ticket->callPhotoSelection();
 
         return back()->with('success', 'Tiket ' . $ticket->ticket_number . ' dipanggil ke Pilih Foto.');
@@ -1329,6 +1333,7 @@ class OperatorController extends Controller
             return back()->with('error', 'Tiket ini tidak bisa dimulai Pilih Foto-nya.');
         }
 
+        $ticket->select_by ??= auth()->id();
         $ticket->beginPhotoSelection();
 
         return back()->with('success', 'Pilih Foto tiket ' . $ticket->ticket_number . ' dimulai, timer ' . max(1, (int) $ticket->location->photo_select_minutes) . ' menit.');
@@ -1345,6 +1350,7 @@ class OperatorController extends Controller
             return back()->with('error', 'Tiket ini tidak sedang di tahap Pilih Foto.');
         }
 
+        $ticket->select_by ??= auth()->id();
         $ticket->finishPhotoSelection($ticket->served_by ?? auth()->id());
         broadcast(new QueueUpdated($ticket->location))->toOthers();
 
@@ -2340,7 +2346,7 @@ class OperatorController extends Controller
         $query = Ticket::whereIn('location_id', $ticketLocationIds)
             // registeredBy/photographedBy/editedBy/paidBy: buat kolom
             // "Dilayani Oleh" per tahap (lihat Ticket::stageStaff()).
-            ->with(['counter', 'servedBy', 'registeredBy', 'photographedBy', 'editedBy', 'paidBy'])
+            ->with(['counter', 'servedBy', 'registeredBy', 'photographedBy', 'selectedBy', 'editedBy', 'paidBy'])
             // PENTING: 'id' sebagai tie-breaker kedua. created_at presisinya
             // cuma per detik -- kalau ada 2 tiket yang lahir di detik yang
             // sama (lumrah pas antrian lagi rame), urutan di antara mereka
@@ -2364,24 +2370,42 @@ class OperatorController extends Controller
             $query->where('stage', $stage);
         }
 
+        // Filter PETUGAS: tiket yang pernah ditangani staf itu di tahap mana pun (CS, Fotografer, CS Pilih Foto,
+        // Editor, Kasir) atau yang sedang dipegangnya.
+        $staff = max(0, (int) $request->query('staff', 0));
+        if ($staff > 0) {
+            $query->where(function ($q) use ($staff) {
+                foreach (['registered_by', 'photographed_by', 'select_by', 'edited_by', 'paid_by', 'served_by'] as $col) {
+                    $q->orWhere($col, $staff);
+                }
+            });
+        }
+
         if ($search !== '') {
-            // Kode Order permanen formatnya "PJG-000123" (lihat
-            // Ticket::getOrderCodeAttribute()) — kalau yang diketik cocok pola
-            // itu atau murni angka, ikut cocokkan ke kolom id juga, supaya
-            // pelanggan/tiket lama tetap ketemu walau ticket_number-nya sudah
-            // dipakai ulang di hari lain.
+            // Kode Order permanen formatnya "PJG-000123" (lihat Ticket::getOrderCodeAttribute()) -- kalau yang
+            // diketik cocok pola itu atau murni angka, ikut cocokkan ke kolom id juga, supaya tiket lama tetap
+            // ketemu walau ticket_number-nya sudah dipakai ulang di hari lain.
             $orderIdSearch = null;
-            if (preg_match('/^PJG-0*(\d+)$/i', $search, $m)) {
+            if (preg_match('/^PJG-?0*(\d+)$/i', $search, $m)) {
                 $orderIdSearch = (int) $m[1];
             } elseif (ctype_digit($search)) {
                 $orderIdSearch = (int) $search;
             }
 
-            $query->where(function ($q) use ($search, $orderIdSearch) {
-                $q->where('customer_name', 'like', "%{$search}%")
-                    ->orWhere('customer_phone', 'like', "%{$search}%")
-                    ->orWhere('customer_email', 'like', "%{$search}%")
-                    ->orWhere('ticket_number', 'like', "%{$search}%");
+            // Cari APA SAJA: nama, telepon, email, nomor antrian, isi order/catatan, kategori, dan nama
+            // staf di tiap tahap (CS, fotografer, CS pilih foto, editor, kasir, yang sedang memegang).
+            $like = "%{$search}%";
+            $query->where(function ($q) use ($like, $orderIdSearch) {
+                $q->where('customer_name', 'like', $like)
+                    ->orWhere('customer_phone', 'like', $like)
+                    ->orWhere('customer_email', 'like', $like)
+                    ->orWhere('ticket_number', 'like', $like)
+                    ->orWhere('notes', 'like', $like)
+                    ->orWhereHas('serviceCategory', fn ($c) => $c->where('name', 'like', $like));
+
+                foreach (['registeredBy', 'photographedBy', 'selectedBy', 'editedBy', 'paidBy', 'servedBy'] as $rel) {
+                    $q->orWhereHas($rel, fn ($u) => $u->where('name', 'like', $like));
+                }
 
                 if ($orderIdSearch !== null) {
                     $q->orWhere('id', $orderIdSearch);
@@ -2391,7 +2415,7 @@ class OperatorController extends Controller
 
         $tickets = $query->paginate(20)->withQueryString();
 
-        return [$tickets, $search, $status, $stage, $date];
+        return [$tickets, $search, $status, $stage, $date, $staff];
     }
 
     /**
@@ -2413,7 +2437,7 @@ class OperatorController extends Controller
         $locationIds ??= [$location->id];
 
         $query = Booking::whereIn('location_id', $locationIds)
-            ->with(['serviceCategory', 'ticket'])
+            ->with(['serviceCategory', 'ticket', 'ticket.servedBy', 'ticket.registeredBy', 'ticket.photographedBy', 'ticket.selectedBy', 'ticket.editedBy', 'ticket.paidBy', 'ticket.counter'])
             ->orderByDesc('booking_date')
             ->orderByDesc('booking_time')
             // Tie-breaker sama alasannya kayak di filteredCustomerTickets() --
@@ -2424,20 +2448,47 @@ class OperatorController extends Controller
             $query->whereDate('booking_date', $date);
         }
 
+        // Filter PETUGAS (param bq-nya sengaja beda: bstaff) -- lewat tiket hasil check-in reservasi.
+        $staff = max(0, (int) $request->query('bstaff', 0));
+        if ($staff > 0) {
+            $query->whereHas('ticket', function ($t) use ($staff) {
+                $t->where(function ($q) use ($staff) {
+                    foreach (['registered_by', 'photographed_by', 'select_by', 'edited_by', 'paid_by', 'served_by'] as $col) {
+                        $q->orWhere($col, $staff);
+                    }
+                });
+            });
+        }
+
         if ($search !== '') {
-            $query->where(function ($q) use ($search) {
-                $q->where('customer_name', 'like', "%{$search}%")
-                    ->orWhere('customer_phone', 'like', "%{$search}%")
-                    ->orWhere('customer_email', 'like', "%{$search}%")
-                    ->orWhere('order_code', 'like', "%{$search}%")
-                    ->orWhere('booking_code', 'like', "%{$search}%")
-                    ->orWhereHas('ticket', fn ($t) => $t->where('ticket_number', 'like', "%{$search}%"));
+            // Cari APA SAJA: nama, telepon, email, kode order, paket, catatan, nomor tiket, PJG, dan nama staf.
+            $like = "%{$search}%";
+            $idSearch = preg_match('/^PJG-?0*(\d+)$/i', $search, $m) ? (int) $m[1] : null;
+
+            $query->where(function ($q) use ($like, $idSearch) {
+                $q->where('customer_name', 'like', $like)
+                    ->orWhere('customer_phone', 'like', $like)
+                    ->orWhere('customer_email', 'like', $like)
+                    ->orWhere('order_code', 'like', $like)
+                    ->orWhere('booking_code', 'like', $like)
+                    ->orWhere('package_name', 'like', $like)
+                    ->orWhere('notes', 'like', $like)
+                    ->orWhereHas('ticket', function ($t) use ($like, $idSearch) {
+                        $t->where('ticket_number', 'like', $like)
+                            ->orWhere('notes', 'like', $like);
+                        foreach (['registeredBy', 'photographedBy', 'selectedBy', 'editedBy', 'paidBy', 'servedBy'] as $rel) {
+                            $t->orWhereHas($rel, fn ($u) => $u->where('name', 'like', $like));
+                        }
+                        if ($idSearch !== null) {
+                            $t->orWhere('id', $idSearch);
+                        }
+                    });
             });
         }
 
         $bookings = $query->paginate(10, ['*'], 'booking_page')->withQueryString();
 
-        return [$bookings, $search, $date];
+        return [$bookings, $search, $date, $staff];
     }
 
     /**

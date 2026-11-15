@@ -2000,6 +2000,11 @@ class OperatorController extends Controller
             return back()->with('error', 'Tiket ini bukan untuk tahap Sesi Foto.');
         }
 
+        // Reservasi: tidak ada tahap Siap-siap, langsung "Panggil" ke Studio.
+        if ($ticket->isReservation()) {
+            return back()->with('error', 'Tiket reservasi tidak lewat Siap-siap. Langsung klik "Panggil" ke Studio.');
+        }
+
         $called = false;
         DB::transaction(function () use ($ticket, $user, &$called) {
             $fresh = Ticket::whereKey($ticket->id)->lockForUpdate()->first();
@@ -2031,9 +2036,11 @@ class OperatorController extends Controller
         $nextTicket = null;
 
         DB::transaction(function () use ($user, $scopeLocationIds, &$nextTicket) {
+            // Tiket RESERVASI tidak lewat Siap-siap: langsung dipanggil ke Studio -> jangan ikut terpilih di sini.
             $ticket = Ticket::where('status', 'waiting')
                 ->whereIn('location_id', $scopeLocationIds)
                 ->where('stage', 'photo_session')
+                ->whereDoesntHave('booking')
                 ->orderBy('created_at')
                 ->lockForUpdate()
                 ->first();
@@ -2118,6 +2125,11 @@ class OperatorController extends Controller
         // DICABUT -- lihat catatan lengkap di callNextToPrepare().
         if ($ticket->stage !== 'photo_session') {
             return back()->with('error', 'Tiket ini bukan untuk tahap Sesi Foto.');
+        }
+
+        // Reservasi: tidak ada tahap Siap-siap, langsung "Panggil" ke Studio.
+        if ($ticket->isReservation()) {
+            return back()->with('error', 'Tiket reservasi tidak lewat Siap-siap. Langsung klik "Panggil" ke Studio.');
         }
 
         $called = false;
@@ -2245,9 +2257,11 @@ class OperatorController extends Controller
         $nextTicket = null;
 
         DB::transaction(function () use ($counter, $user, $scopeLocationIds, &$nextTicket) {
+            // Tiket RESERVASI tidak lewat Siap-siap (langsung dipanggil ke Studio), jadi tidak ikut auto-siap-siap.
             $ticket = Ticket::where('status', 'waiting')
                 ->whereIn('location_id', $scopeLocationIds)
                 ->whereIn('stage', $counter->stages ?? [])
+                ->whereDoesntHave('booking')
                 ->orderBy('created_at')
                 ->lockForUpdate()
                 ->first();

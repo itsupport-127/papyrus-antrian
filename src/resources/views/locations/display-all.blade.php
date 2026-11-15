@@ -188,6 +188,7 @@
                 ->groupBy('stage');
 
             $waitingByStage = \App\Models\Ticket::whereIn('location_id', $scopeLocationIds)
+                ->with('booking')
                 ->where('status', 'waiting')
                 ->whereIn('stage', ['photo_session', 'payment'])
                 ->orderByRaw('COALESCE(last_skipped_at, created_at)')
@@ -275,8 +276,10 @@
                         // studio, tiap barisnya dikasih label nama studio biar
                         // jelas punya studio mana.
                         $waiting = match ($stageKey) {
-                            'photo_session_preparing' => $waitingByStage->get('photo_session', collect()),
-                            'photo_session' => $preparingTickets,
+                            // Tiket RESERVASI tidak lewat Siap-siap: yang menunggu dipanggil masuk daftar "Masuk Studio",
+                            // bukan daftar "Siap-Siap" (supaya pelanggan reservasi tidak mengira disuruh bersiap).
+                            'photo_session_preparing' => $waitingByStage->get('photo_session', collect())->filter(fn ($t) => !$t->isReservation())->values(),
+                            'photo_session' => $preparingTickets->concat($waitingByStage->get('photo_session', collect())->filter(fn ($t) => $t->isReservation()))->values(),
                             'payment' => $waitingByStage->get('payment', collect())->concat($editingTickets),
                             default => $waitingByStage->get($stageKey, collect()),
                         };

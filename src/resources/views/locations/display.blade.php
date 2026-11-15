@@ -289,8 +289,10 @@
                         // studio, tiap barisnya dikasih label nama studio biar
                         // jelas punya studio mana.
                         $waiting = match ($stageKey) {
-                            'photo_session_preparing' => $waitingByStage->get('photo_session', collect()),
-                            'photo_session' => $preparingTickets,
+                            // Tiket RESERVASI tidak lewat Siap-siap: yang menunggu dipanggil masuk daftar "Masuk Studio",
+                            // bukan daftar "Siap-Siap" (supaya pelanggan reservasi tidak mengira disuruh bersiap).
+                            'photo_session_preparing' => $waitingByStage->get('photo_session', collect())->filter(fn ($t) => !$t->isReservation())->values(),
+                            'photo_session' => $preparingTickets->concat($waitingByStage->get('photo_session', collect())->filter(fn ($t) => $t->isReservation()))->values(),
                             'payment' => $waitingByStage->get('payment', collect())->concat($editingTickets),
                             default => $waitingByStage->get($stageKey, collect()),
                         };

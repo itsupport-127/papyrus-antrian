@@ -1711,7 +1711,7 @@
                                                                 @endif
                                                                 @if(in_array($ticket->status, ['waiting', 'calling'], true))
                                                                     <div class="flex items-center gap-2 flex-wrap mt-3 pt-3 border-t border-slate-200 dark:border-slate-600">
-                                                                        {{-- Sesi Foto: SELALU lewat "Siap-siap" dulu -- pelanggan
+                                                                        {{-- Sesi Foto: SELALU lewat "Siap-siap" dulu (KECUALI tiket RESERVASI: langsung "Panggil" ke Studio) -- pelanggan
                                                                              butuh waktu buat bersiap (ganti baju, dsb) sebelum masuk
                                                                              studio, jadi gak ada lagi jalan pintas "Panggil" langsung
                                                                              ke Sesi Foto buat tahap ini, baik loket lagi kosong
@@ -1721,11 +1721,11 @@
                                                                              OperatorController::callSpecificToPrepare(), biar gak
                                                                              pernah nongol dalam kondisi yang bakal gagal kalau
                                                                              diklik. --}}
-                                                                        @if($ticket->status === 'waiting' && $ticket->stage === 'photo_session' && in_array('photo_session', $counter->stages ?? [], true))
+                                                                        @if($ticket->status === 'waiting' && $ticket->stage === 'photo_session' && in_array('photo_session', $counter->stages ?? [], true) && !$ticket->isReservation())
                                                                             <form method="POST" action="{{ route('operator.call-specific-prepare', $ticket) }}" class="flex-1 min-w-[80px]">@csrf
                                                                                 <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-1.5 rounded-lg text-xs font-semibold transition-colors">Panggil Siap-siap</button>
                                                                             </form>
-                                                                        @elseif($ticket->status === 'waiting' && $ticket->stage === 'photo_session' && $isCsKasir)
+                                                                        @elseif($ticket->status === 'waiting' && $ticket->stage === 'photo_session' && $isCsKasir && !$ticket->isReservation())
                                                                             {{-- CS/Kasir: sama kayak tombol fotografer di atas, tapi generik
                                                                                  (gak pilih studio tujuan) -- lihat OperatorController::
                                                                                  callSpecificToPrepareAuto(). --}}
@@ -3134,7 +3134,7 @@
                                                                 @endif
                                                                 @if(in_array($ticket->status, ['waiting', 'calling'], true))
                                                                     <div class="flex items-center gap-2 flex-wrap mt-3 pt-3 border-t border-slate-200 dark:border-slate-600">
-                                                                        {{-- Sesi Foto: SELALU lewat "Siap-siap" dulu -- pelanggan
+                                                                        {{-- Sesi Foto: SELALU lewat "Siap-siap" dulu (KECUALI tiket RESERVASI: langsung "Panggil" ke Studio) -- pelanggan
                                                                              butuh waktu buat bersiap (ganti baju, dsb) sebelum masuk
                                                                              studio, jadi gak ada lagi jalan pintas "Panggil" langsung
                                                                              ke Sesi Foto buat tahap ini, baik loket lagi kosong
@@ -3144,11 +3144,11 @@
                                                                              OperatorController::callSpecificToPrepare(), biar gak
                                                                              pernah nongol dalam kondisi yang bakal gagal kalau
                                                                              diklik. --}}
-                                                                        @if($ticket->status === 'waiting' && $ticket->stage === 'photo_session' && in_array('photo_session', $counter->stages ?? [], true))
+                                                                        @if($ticket->status === 'waiting' && $ticket->stage === 'photo_session' && in_array('photo_session', $counter->stages ?? [], true) && !$ticket->isReservation())
                                                                             <form method="POST" action="{{ route('operator.call-specific-prepare', $ticket) }}" class="flex-1 min-w-[80px]">@csrf
                                                                                 <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-1.5 rounded-lg text-xs font-semibold transition-colors">Panggil Siap-siap</button>
                                                                             </form>
-                                                                        @elseif($ticket->status === 'waiting' && $ticket->stage === 'photo_session' && $isCsKasir)
+                                                                        @elseif($ticket->status === 'waiting' && $ticket->stage === 'photo_session' && $isCsKasir && !$ticket->isReservation())
                                                                             {{-- CS/Kasir: sama kayak tombol fotografer di atas, tapi generik
                                                                                  (gak pilih studio tujuan) -- lihat OperatorController::
                                                                                  callSpecificToPrepareAuto(). --}}
@@ -3825,6 +3825,8 @@
                                                     <td class="px-5 py-3.5" data-label="No. Antrian">
                                                         <div class="flex flex-col">
                                                             <span class="font-semibold text-slate-900 dark:text-white">{{ $ct->ticket_number }}</span>
+                                                            {{-- Tanggal & jam tiket dibuat -- penting saat filter "semua tanggal" aktif. --}}
+                                                            <span class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 whitespace-nowrap">{{ $ct->created_at?->format('d M Y') }} &middot; {{ $ct->created_at?->format('H:i') }}</span>
                                                             @if($ct->skip_count > 0)
                                                                 <span class="text-[11px] text-amber-600 dark:text-amber-400 font-medium mt-0.5">Lewati {{ $ct->skip_count }}x</span>
                                                             @endif

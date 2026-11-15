@@ -73,7 +73,7 @@
     </ul>
     @if($waktuTicket->payment_called_at || $waktuTicket->payment_served_at || $waktuTicket->payment_completed_at)
         <div class="mt-2.5 pt-2 border-t border-slate-200 dark:border-slate-700">
-            <div class="text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-1">Jam Pembayaran</div>
+            <div class="text-[10px] uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-1">Jam Pembayaran &middot; {{ $waktuTicket->created_at?->format('d M Y') }}</div>
             <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
                 @foreach([
                     'Selesai foto' => $waktuTicket->photo_completed_at,
@@ -83,7 +83,8 @@
                 ] as $lbl => $jam)
                     <div class="leading-tight">
                         <span class="block text-slate-400 dark:text-slate-500">{{ $lbl }}</span>
-                        <span class="font-semibold text-slate-700 dark:text-slate-200">{{ $jam?->format('H:i:s') ?? '-' }}</span>
+                        {{-- Jam saja kalau masih di hari tiket dibuat; kalau lewat hari (mis. edit menyusul) tanggalnya ikut tampil. --}}
+                        <span class="font-semibold text-slate-700 dark:text-slate-200">{{ $jam ? ($waktuTicket->created_at && $jam->isSameDay($waktuTicket->created_at) ? $jam->format('H:i:s') : $jam->format('d M H:i:s')) : '-' }}</span>
                     </div>
                 @endforeach
             </div>

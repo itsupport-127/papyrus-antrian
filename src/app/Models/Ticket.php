@@ -628,7 +628,10 @@ class Ticket extends Model
         if ($this->status === 'waiting') {
             return match ($this->stage) {
                 'registration' => 'Nomor Anda sudah masuk antrian registrasi. Anda boleh pergi dulu, kami kabari saat Anda dipanggil ke CS untuk mencatat order.',
-                'photo_session' => 'Registrasi sudah selesai. Anda sedang menunggu giliran sesi foto, kami kabari saat tiba waktunya bersiap.',
+                // Reservasi tidak lewat Siap-siap: langsung dipanggil ke Studio.
+                'photo_session' => $this->isReservation()
+                    ? 'Anda sudah check-in. Mohon tunggu sebentar, kami akan langsung memanggil Anda ke Studio.'
+                    : 'Registrasi sudah selesai. Anda sedang menunggu giliran sesi foto, kami kabari saat tiba waktunya bersiap.',
                 'payment' => 'Sesi foto sudah selesai. Anda sedang menunggu dipanggil ke kasir untuk pembayaran.',
                 default => null,
             };

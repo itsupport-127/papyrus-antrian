@@ -131,6 +131,16 @@
         async function submitGetFormAjax(form) {
             if (form.dataset.submitting === '1') return;
             form.dataset.submitting = '1';
+
+            // ENTER di kotak Cari (atau di dropdown filter) -> kotak itu masih memegang fokus saat hasilnya
+            // datang, dan applyDashboardPatch sengaja TIDAK menimpa panel yang inputnya sedang fokus (supaya
+            // ketikan tidak terputus). Akibatnya hasil filter tidak tampil kalau lewat Enter, padahal lewat
+            // tombol "Terapkan Filter" tampil (fokusnya pindah ke tombol). Solusi: lepas fokus dulu supaya hasil
+            // diterapkan, lalu kembalikan fokus (dan kursor di akhir teks) setelah tabel diperbarui.
+            const focused = document.activeElement;
+            const refocus = (focused && form.contains(focused) && ['INPUT', 'SELECT', 'TEXTAREA'].includes(focused.tagName) && focused.name)
+                ? focused.name : null;
+            if (refocus) focused.blur();
             // Form filter di-submit = pilihan sudah "disimpan": lepas penanda
             // dirty, kalau tidak hasil filternya sendiri ikut dilewati patch.
             delete form.dataset.dirty;
@@ -153,6 +163,18 @@
             } finally {
                 if (submitBtn) submitBtn.disabled = false;
                 delete form.dataset.submitting;
+
+                if (refocus) {
+                    // Form-nya bisa sudah diganti oleh patch -> cari ulang lewat namanya.
+                    const again = document.querySelector('#tab-pelanggan [name="' + refocus + '"]');
+                    if (again) {
+                        again.focus();
+                        if (again.type === 'text' && typeof again.setSelectionRange === 'function') {
+                            const end = again.value.length;
+                            again.setSelectionRange(end, end);
+                        }
+                    }
+                }
             }
         }
 

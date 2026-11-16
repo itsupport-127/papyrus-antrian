@@ -701,8 +701,8 @@
             const spoken = spokenTicketNumber(ticketNumber);
             // Tiket reservasi: yang dipanggil NAMA (maks. 2 kata); tiket biasa: "Nomor antrian P P dua satu".
             const who = spokenName ? spokenName : `Nomor antrian ${spoken}`;
-            // Pilih Foto (khusus reservasi): diarahkan ke CS & Kasir untuk dipandu memilih foto di PC preview.
-            const SELECTING_TEXT = (w) => `${w}, silakan menuju ke CS dan Kasir untuk dipandu memilih foto di komputer preview.`;
+            // Pilih Foto (khusus reservasi): pengumuman singkat.
+            const SELECTING_TEXT = (w) => `${w}, silakan melakukan pemilihan foto.`;
             const text = kind === 'selecting'
                 ? SELECTING_TEXT(who)
                 : kind === 'preparing'

@@ -620,8 +620,8 @@ class Ticket extends Model
         if ($this->isSelectingPhotos()) {
             return match ($this->photoSelectionState()) {
                 'waiting' => 'Sesi foto selesai. Mohon tunggu sebentar, CS akan memanggil Anda untuk memilih foto.',
-                'called' => 'Silakan menuju CS & Kasir untuk dipandu memilih foto di komputer preview.',
-                default => 'Pilih foto Anda sebelum waktu habis; petugas akan membantu. Setelah ini pembayaran, lalu foto diedit dan kami kabari progresnya.',
+                'called' => 'Anda akan dipandu oleh CS/Kasir untuk memilih foto.',
+                default => 'Anda dipandu oleh CS/Kasir. Pilih foto sebelum waktu habis, setelah itu pembayaran.',
             };
         }
 

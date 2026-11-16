@@ -225,7 +225,9 @@
                                 <div class="flex items-start mx-auto" style="max-width:440px">
                                     @foreach($rsSteps as $i => $rs)
                                         @php
-                                            $dotBg = $rs['state'] === 'done' ? '#1D9E75' : ($rs['state'] === 'current' ? '#7F77DD' : 'transparent');
+                                            // Langkah yang belum jalan: latar PUTIH SOLID (gelap di mode gelap), bukan transparan --
+                                            // kalau transparan, garis penghubung di belakang lingkaran tembus kelihatan di dalam nomornya.
+                                            $dotBg = $rs['state'] === 'done' ? '#1D9E75' : ($rs['state'] === 'current' ? '#7F77DD' : null);
                                             $dotBorder = $rs['state'] === 'todo' ? '1px solid #94a3b8' : '1px solid transparent';
                                             $dotColor = $rs['state'] === 'todo' ? '#94a3b8' : '#fff';
                                         @endphp
@@ -233,7 +235,7 @@
                                             @if(!$loop->last)
                                                 <span class="absolute" style="top:13px;left:50%;width:100%;height:2px;background:{{ $rs['state'] === 'done' ? '#1D9E75' : '#cbd5e1' }}"></span>
                                             @endif
-                                            <span class="relative inline-flex items-center justify-center text-xs font-bold" style="width:28px;height:28px;border-radius:9999px;background:{{ $dotBg }};border:{{ $dotBorder }};color:{{ $dotColor }}">{{ $rs['state'] === 'done' ? '✓' : $i + 1 }}</span>
+                                            <span class="relative inline-flex items-center justify-center text-xs font-bold {{ $dotBg ? '' : 'bg-white dark:bg-slate-800' }}" style="width:28px;height:28px;border-radius:9999px;{{ $dotBg ? 'background:' . $dotBg . ';' : '' }}border:{{ $dotBorder }};color:{{ $dotColor }}">{{ $rs['state'] === 'done' ? '✓' : $i + 1 }}</span>
                                             <span class="mt-1.5 leading-tight {{ $rs['state'] === 'current' ? 'font-semibold text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400' }}" style="font-size:11px">{{ $rs['label'] }}</span>
                                         </div>
                                     @endforeach

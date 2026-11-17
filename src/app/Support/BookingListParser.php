@@ -374,7 +374,10 @@ class BookingListParser
         }
 
         if ($v instanceof DateTimeInterface) {
-            return [$v->format('H:i'), null];
+            // Dibulatkan ke menit terdekat: jam hasil konversi serial Excel bisa meleset beberapa detik.
+            $min = ((int) $v->format('G')) * 60 + (int) $v->format('i') + ((int) $v->format('s') >= 30 ? 1 : 0);
+
+            return [sprintf('%02d:%02d', intdiv($min, 60) % 24, $min % 60), null];
         }
 
         if (is_int($v) || is_float($v)) {

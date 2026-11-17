@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Booking;
 use App\Models\BookingPackage;
+use App\Models\GraduationDay;
 use App\Models\Location;
 use App\Models\User;
 use App\Services\BookingListExcel;
@@ -22,7 +23,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class BookingListController extends Controller
 {
-    private const TABS = ['today' => 'Hari Ini', 'all' => 'Semua Jadwal', 'checkedin' => 'Sudah Check-in', 'cancelled' => 'Batal'];
+    private const TABS = ['today' => 'Hari Ini', 'all' => 'Semua Jadwal', 'calendar' => 'Kalender', 'checkedin' => 'Sudah Check-in', 'cancelled' => 'Batal'];
 
     private function staff(): User
     {
@@ -59,8 +60,28 @@ class BookingListController extends Controller
         }
     }
 
+    /**
+     * Bulan yang ditampilkan di "Semua Jadwal": pilihan user; kalau belum memilih, bulan ini (kalau ada
+     * datanya), kalau tidak ada -> semua bulan. 'all' = semua bulan.
+     */
+    private function resolveMonth(Request $request, Location $location, string $tab): string
+    {
+        $m = $request->input('month');
+        if ($m !== null && $m !== '') {
+            return (string) $m;
+        }
+        if ($tab !== 'all') {
+            return 'all';
+        }
+        $cur = now();
+        $has = Booking::where('location_id', $location->id)
+            ->whereYear('booking_date', $cur->year)->whereMonth('booking_date', $cur->month)->exists();
+
+        return $has ? $cur->format('Y-m') : 'all';
+    }
+
     /** Query sesuai tab + filter (dipakai halaman & export). */
-    private function query(Request $request, Location $location, string $tab)
+    private function query(Request $request, Location $location, string $tab, string $month)
     {
         $q = Booking::where('location_id', $location->id)->with(['ticket', 'serviceCategory']);
 
@@ -74,22 +95,29 @@ class BookingListController extends Controller
             $q->orderBy('booking_date')->orderBy('booking_time');
         }
 
-        $month = (string) $request->input('month', $tab === 'all' ? now()->format('Y-m') : 'all');
-        if ($tab !== 'today' && preg_match('/^\d{4}-\d{2}$/', $month)) {
+        $search = trim((string) $request->input('q', ''));
+
+        // Saat mencari, pencarian jalan di SEMUA bulan (bukan hanya bulan yang sedang dipilih).
+        if ($tab !== 'today' && $search === '' && preg_match('/^\d{4}-\d{2}$/', $month)) {
             $q->whereYear('booking_date', (int) substr($month, 0, 4))->whereMonth('booking_date', (int) substr($month, 5, 2));
         }
 
-        $search = trim((string) $request->input('q', ''));
+        // Pencarian fleksibel: tiap kata harus ketemu (di nama, kode JG, paket, keterangan, UNIV, no. telp),
+        // dan cukup sebagian saja -- "agn" sudah menemukan "AGNESIA"; "035474" menemukan "JG035474".
         if ($search !== '') {
-            $like = '%' . str_replace(['%', '_'], ['\%', '\_'], $search) . '%';
-            $q->where(function ($w) use ($like) {
-                $w->where('customer_name', 'like', $like)
-                    ->orWhere('order_code', 'like', $like)
-                    ->orWhere('booking_code', 'like', $like)
-                    ->orWhere('package_name', 'like', $like)
-                    ->orWhere('notes', 'like', $like)
-                    ->orWhere('univ', 'like', $like);
-            });
+            $tokens = array_slice(preg_split('/\s+/u', $search, -1, PREG_SPLIT_NO_EMPTY) ?: [], 0, 6);
+            foreach ($tokens as $token) {
+                $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $token) . '%';
+                $q->where(function ($w) use ($like) {
+                    $w->where('customer_name', 'like', $like)
+                        ->orWhere('order_code', 'like', $like)
+                        ->orWhere('booking_code', 'like', $like)
+                        ->orWhere('package_name', 'like', $like)
+                        ->orWhere('notes', 'like', $like)
+                        ->orWhere('univ', 'like', $like)
+                        ->orWhere('customer_phone', 'like', $like);
+                });
+            }
         }
 
         $status = (string) $request->input('status', '');
@@ -112,7 +140,15 @@ class BookingListController extends Controller
         abort_if(!$location, 404, 'Belum ada lokasi.');
 
         $tab = array_key_exists($request->input('tab'), self::TABS) ? $request->input('tab') : 'today';
-        $bookings = $this->query($request, $location, $tab)->paginate(100)->withQueryString();
+        $month = $this->resolveMonth($request, $location, $tab);
+
+        $bookings = null;
+        $graduations = collect();
+        if ($tab !== 'calendar') {
+            $bookings = $this->query($request, $location, $tab, $month)->paginate(100)->withQueryString();
+            $dates = $bookings->getCollection()->map(fn (Booking $b) => $b->booking_date->format('Y-m-d'))->push(today()->format('Y-m-d'))->unique()->values()->all();
+            $graduations = GraduationDay::whereIn('date', $dates)->get()->groupBy(fn (GraduationDay $g) => $g->date->format('Y-m-d'));
+        }
 
         $base = Booking::where('location_id', $location->id);
         $counts = [
@@ -121,31 +157,118 @@ class BookingListController extends Controller
             'review' => (clone $base)->where('needs_review', true)->count(),
         ];
 
-        // Daftar bulan untuk filter "Semua Jadwal" (dari tanggal terawal sampai terakhir yang ada).
-        $range = (clone $base)->selectRaw('MIN(booking_date) as min_d, MAX(booking_date) as max_d')->first();
+        // Daftar bulan (+ jumlah booking) untuk pilihan bulan di "Semua Jadwal".
         $months = [];
-        if ($range && $range->min_d) {
-            $cursor = Carbon::parse($range->min_d)->startOfMonth();
-            $end = Carbon::parse($range->max_d)->startOfMonth();
-            while ($cursor <= $end && count($months) < 60) {
-                $months[$cursor->format('Y-m')] = $cursor->translatedFormat('F Y');
-                $cursor->addMonth();
-            }
+        foreach ((clone $base)->toBase()->pluck('booking_date')->countBy(fn ($d) => substr((string) $d, 0, 7))->sortKeys() as $ym => $n) {
+            $months[$ym] = ['label' => Carbon::createFromFormat('Y-m-d', $ym . '-01')->translatedFormat('F Y'), 'count' => $n];
         }
+
+        $calendar = $tab === 'calendar' ? $this->calendarData($request, $location) : null;
 
         return view('operator.list-booking.index', [
             'tab' => $tab,
             'tabs' => self::TABS,
             'bookings' => $bookings,
+            'graduations' => $graduations,
+            'calendar' => $calendar,
+            'campusSuggestions' => GraduationDay::CAMPUS_SUGGESTIONS,
+            'packages' => BookingPackage::ordered()->pluck('name'),
             'locations' => $locations,
             'location' => $location,
             'counts' => $counts,
             'months' => $months,
-            'month' => (string) $request->input('month', $tab === 'all' ? now()->format('Y-m') : 'all'),
+            'month' => $month,
             'search' => trim((string) $request->input('q', '')),
             'status' => (string) $request->input('status', ''),
             'onlyReview' => $request->boolean('review'),
         ]);
+    }
+
+    /** Data kalender sebulan: jumlah booking per hari + penanda wisuda + detail hari yang dipilih. */
+    private function calendarData(Request $request, Location $location): array
+    {
+        $ym = (string) $request->input('month', '');
+        $first = preg_match('/^\d{4}-\d{2}$/', $ym) ? Carbon::createFromFormat('Y-m-d', $ym . '-01')->startOfDay() : now()->startOfMonth();
+        $last = $first->copy()->endOfMonth();
+
+        $monthBookings = Booking::where('location_id', $location->id)
+            ->whereBetween('booking_date', [$first->toDateString(), $last->toDateString()])
+            ->orderBy('booking_time')->get();
+        $byDay = $monthBookings->groupBy(fn (Booking $b) => $b->booking_date->format('Y-m-d'));
+
+        $gradByDay = GraduationDay::whereBetween('date', [$first->toDateString(), $last->toDateString()])
+            ->orderBy('campus')->get()->groupBy(fn (GraduationDay $g) => $g->date->format('Y-m-d'));
+
+        // Grid minggu Senin-Minggu.
+        $cursor = $first->copy()->startOfWeek(Carbon::MONDAY);
+        $end = $last->copy()->endOfWeek(Carbon::SUNDAY);
+        $weeks = [];
+        while ($cursor <= $end) {
+            $week = [];
+            for ($i = 0; $i < 7; $i++) {
+                $key = $cursor->format('Y-m-d');
+                $items = $byDay->get($key, collect());
+                $week[] = [
+                    'date' => $cursor->copy(),
+                    'key' => $key,
+                    'in_month' => $cursor->month === $first->month,
+                    'is_today' => $cursor->isToday(),
+                    'total' => $items->where('status', '!=', 'cancelled')->count(),
+                    'cancelled' => $items->where('status', 'cancelled')->count(),
+                    'grads' => $gradByDay->get($key, collect()),
+                ];
+                $cursor->addDay();
+            }
+            $weeks[] = $week;
+        }
+
+        $selected = (string) $request->input('day', '');
+        $selected = preg_match('/^\d{4}-\d{2}-\d{2}$/', $selected) ? $selected : null;
+
+        return [
+            'first' => $first,
+            'prev' => $first->copy()->subMonth()->format('Y-m'),
+            'next' => $first->copy()->addMonth()->format('Y-m'),
+            'weeks' => $weeks,
+            'selected' => $selected,
+            'selected_bookings' => $selected ? $byDay->get($selected, collect()) : collect(),
+            'selected_grads' => $selected ? ($gradByDay->get($selected) ?? GraduationDay::whereDate('date', $selected)->get()) : collect(),
+            'upcoming' => GraduationDay::where('date', '>=', today()->toDateString())->orderBy('date')->orderBy('campus')->limit(15)->get(),
+        ];
+    }
+
+    public function storeGraduation(Request $request): RedirectResponse
+    {
+        $user = $this->staff();
+        $data = $request->validate([
+            'date' => ['required', 'date'],
+            'campus' => ['required', 'string', 'max:120'],
+            'note' => ['nullable', 'string', 'max:255'],
+        ], [
+            'date.required' => 'Pilih tanggal wisuda.',
+            'campus.required' => 'Isi nama kampus.',
+        ]);
+
+        $campus = trim(preg_replace('/\s+/', ' ', $data['campus']));
+        $date = Carbon::parse($data['date']);
+
+        // Kampus yang sama di tanggal yang sama tidak perlu ditandai dua kali.
+        $exists = GraduationDay::whereDate('date', $date->toDateString())->whereRaw('LOWER(campus) = ?', [mb_strtolower($campus)])->exists();
+        if (!$exists) {
+            GraduationDay::create(['date' => $date->toDateString(), 'campus' => $campus, 'note' => $data['note'] ?? null, 'created_by' => $user->id]);
+        }
+
+        return redirect()->route('operator.list-booking', array_filter([
+            'tab' => 'calendar', 'month' => $date->format('Y-m'), 'day' => $date->toDateString(), 'loc' => $request->input('loc'),
+        ]))->with('success', $exists ? 'Wisuda ' . $campus . ' di tanggal itu sudah ditandai.' : 'Wisuda ' . $campus . ' ditandai di ' . $date->translatedFormat('d F Y') . '.');
+    }
+
+    public function destroyGraduation(GraduationDay $graduationDay): RedirectResponse
+    {
+        $this->staff();
+        $graduationDay->delete();
+
+        return back()->with('success', 'Penanda wisuda ' . $graduationDay->campus . ' dihapus.');
     }
 
     public function create(Request $request): View
@@ -169,6 +292,7 @@ class BookingListController extends Controller
         abort_if(!$location, 404);
 
         $data = $this->validated($request);
+        $data['status'] = $data['status'] ?? 'confirmed';
         $date = Carbon::parse($data['booking_date']);
 
         Booking::create($data + [
@@ -198,7 +322,7 @@ class BookingListController extends Controller
 
         $data = $this->validated($request);
         // Booking yang sudah jadi tiket: statusnya diatur oleh alur antrian, jangan diubah dari sini.
-        if ($booking->ticket_id) {
+        if ($booking->ticket_id || empty($data['status'])) {
             unset($data['status']);
         }
         // Dibatalkan lewat sini mengikuti aturan reservasi: DP yang sudah masuk ditandai hangus.
@@ -274,10 +398,12 @@ class BookingListController extends Controller
         abort_if(!$location, 404);
 
         $tab = array_key_exists($request->input('tab'), self::TABS) ? $request->input('tab') : 'all';
-        $request->merge(['month' => $request->input('month', 'all')]);
-        $bookings = $this->query($request, $location, $tab)->get();
+        $month = (string) $request->input('month', 'all');
+        $bookings = $this->query($request, $location, $tab === 'calendar' ? 'all' : $tab, $month)->get();
 
-        return $excel->download($bookings, 'list-booking-' . str($location->name)->slug() . '-' . now()->format('Ymd-His') . '.xlsx');
+        $graduations = GraduationDay::all()->groupBy(fn (GraduationDay $g) => $g->date->format('Y-m-d'));
+
+        return $excel->download($bookings, 'list-booking-' . str($location->name)->slug() . '-' . now()->format('Ymd-His') . '.xlsx', $graduations);
     }
 
     /** @return array<string, mixed> */
@@ -291,10 +417,10 @@ class BookingListController extends Controller
 
         $data = $request->validate([
             'customer_name' => ['required', 'string', 'max:255'],
-            'order_code' => ['nullable', 'string', 'max:50'],
+            'order_code' => ['required', 'string', 'max:50'],
             'booking_date' => ['required', 'date'],
             'booking_time' => ['required', 'date_format:H:i'],
-            'package_name' => ['nullable', 'string', 'max:100'],
+            'package_name' => ['required', 'string', 'max:100'],
             'people_count' => ['nullable', 'integer', 'min:0', 'max:1000'],
             'customer_phone' => ['nullable', 'string', 'max:20', 'regex:/^\+?[0-9]{8,15}$/'],
             'univ' => ['nullable', 'string', 'max:100'],
@@ -302,10 +428,12 @@ class BookingListController extends Controller
             'arrived_time' => ['nullable', 'date_format:H:i'],
             'started_time' => ['nullable', 'date_format:H:i'],
             'finished_time' => ['nullable', 'date_format:H:i'],
-            'status' => ['required', Rule::in(['pending', 'confirmed', 'completed', 'cancelled'])],
+            'status' => ['nullable', Rule::in(['pending', 'confirmed', 'completed', 'cancelled'])],
             'review_note' => ['nullable', 'string', 'max:500'],
         ], [
+            'order_code.required' => 'Isi kode order.',
             'customer_name.required' => 'Isi nama pelanggan.',
+            'package_name.required' => 'Isi paket.',
             'booking_date.required' => 'Isi tanggal booking.',
             'booking_time.required' => 'Isi jam booking.',
             'booking_time.date_format' => 'Jam harus berformat JJ:MM, mis. 09:30.',

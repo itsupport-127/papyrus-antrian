@@ -28,30 +28,30 @@
 
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div>
-                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Kode Order (KO)</label>
-                                <input type="text" name="order_code" value="{{ $field('order_code', $booking->order_code) }}" maxlength="50" placeholder="JG035474" class="{{ $cls }}">
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Kode Order (KO) <span class="text-red-500">*</span></label>
+                                <input type="text" name="order_code" required value="{{ $field('order_code', $booking->order_code) }}" maxlength="50" placeholder="JG035474" class="{{ $cls }}">
                             </div>
                             <div class="sm:col-span-2">
-                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nama Pelanggan</label>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nama Pelanggan <span class="text-red-500">*</span></label>
                                 <input type="text" name="customer_name" value="{{ $field('customer_name', $booking->customer_name) }}" required class="{{ $cls }}">
                             </div>
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tanggal Booking</label>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tanggal Booking <span class="text-red-500">*</span></label>
                                 <input type="date" name="booking_date" value="{{ $field('booking_date', $booking->booking_date?->format('Y-m-d')) }}" required class="{{ $cls }}">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Jam Booking</label>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Jam Booking <span class="text-red-500">*</span></label>
                                 <input type="time" name="booking_time" value="{{ $field('booking_time', $booking->booking_time?->format('H:i')) }}" required class="{{ $cls }}">
                             </div>
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Paket</label>
-                                <input type="text" name="package_name" list="package-list" value="{{ $field('package_name', $booking->package_name) }}" maxlength="100" class="{{ $cls }}">
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Paket <span class="text-red-500">*</span></label>
+                                <input type="text" name="package_name" required list="package-list" value="{{ $field('package_name', $booking->package_name) }}" maxlength="100" class="{{ $cls }}">
                                 <datalist id="package-list">@foreach($packages as $p)<option value="{{ $p }}">@endforeach</datalist>
                             </div>
                             <div>

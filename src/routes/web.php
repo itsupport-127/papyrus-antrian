@@ -105,6 +105,8 @@ Route::middleware(['auth', EnsureUserIsOperator::class])->prefix('operator')->gr
     Route::get('/list-booking/create', [BookingListController::class, 'create'])->name('operator.list-booking.create');
     Route::get('/list-booking/export', [BookingListController::class, 'export'])->name('operator.list-booking.export');
     Route::post('/list-booking/import', [BookingListController::class, 'import'])->name('operator.list-booking.import');
+    Route::post('/list-booking/graduation', [BookingListController::class, 'storeGraduation'])->name('operator.list-booking.graduation.store');
+    Route::delete('/list-booking/graduation/{graduationDay}', [BookingListController::class, 'destroyGraduation'])->name('operator.list-booking.graduation.destroy');
     Route::post('/list-booking', [BookingListController::class, 'store'])->name('operator.list-booking.store');
     Route::get('/list-booking/{booking}/edit', [BookingListController::class, 'edit'])->name('operator.list-booking.edit');
     Route::put('/list-booking/{booking}', [BookingListController::class, 'update'])->name('operator.list-booking.update');

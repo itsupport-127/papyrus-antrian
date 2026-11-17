@@ -10,6 +10,9 @@
     <a href="{{ route('operator.booking-slots') }}" class="{{ $operatorTab(request()->routeIs('operator.booking-slots*')) }}">
         Jadwal Reservasi
     </a>
+    <a href="{{ route('operator.list-booking') }}" class="{{ $operatorTab(request()->routeIs('operator.list-booking*')) }}">
+        List Booking
+    </a>
     {{-- "Master Data" -- database pelanggan lengkap (SEMUA histori tiket
          lintas hari & lintas lokasi berdasarkan no. telepon), BEDA dari tab
          "Data Pelanggan" di dalam Dashboard (cuma tiket HARI INI). Route

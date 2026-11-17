@@ -34,6 +34,7 @@
                 'label' => 'Operasional',
                 'items' => [
                     ['route' => 'admin.locations', 'match' => ['admin.locations', 'admin.locations.*', 'admin.counters', 'admin.counters.*', 'admin.categories', 'admin.categories.*', 'admin.booking-slots*'], 'label' => 'Lokasi & Reservasi', 'icon' => 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4'],
+                    ['route' => 'operator.list-booking', 'match' => ['operator.list-booking', 'operator.list-booking.*'], 'label' => 'List Booking', 'icon' => 'M3 10h18M3 14h18M10 3v18M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z'],
                     ['route' => 'admin.booking-packages', 'match' => ['admin.booking-packages', 'admin.booking-packages.*'], 'label' => 'Paket Reservasi', 'icon' => 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z'],
                     ['route' => 'admin.booking-extras', 'match' => ['admin.booking-extras', 'admin.booking-extras.*'], 'label' => 'Tambahan Reservasi', 'icon' => 'M12 6v6m0 0v6m0-6h6m-6 0H6'],
                     ['route' => 'admin.reminders', 'match' => ['admin.reminders', 'admin.reminders.*'], 'label' => 'Pengingat', 'icon' => 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9'],

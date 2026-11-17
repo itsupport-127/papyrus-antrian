@@ -2458,6 +2458,11 @@ class OperatorController extends Controller
             // banyak reservasi bisa punya jam slot yang sama persis.
             ->orderByDesc('id');
 
+        // Arsip dari Excel (menu List Booking) yang belum pernah check-in tidak ikut di Data Pelanggan.
+        $query->where(function ($q) {
+            $q->where('source', '!=', 'excel')->orWhereNotNull('ticket_id');
+        });
+
         if ($date !== 'all') {
             $query->whereDate('booking_date', $date);
         }

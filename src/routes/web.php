@@ -4,6 +4,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\BookingExtraController;
+use App\Http\Controllers\BookingListController;
 use App\Http\Controllers\BookingPackageController;
 use App\Http\Controllers\ReminderSettingController;
 use App\Http\Controllers\FeedbackController;
@@ -96,6 +97,18 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', EnsureUserIsOperator::class])->prefix('operator')->group(function () {
     Route::get('/dashboard', [OperatorController::class, 'dashboard'])->name('operator.dashboard');
     Route::get('/customers', [OperatorController::class, 'customers'])->name('operator.customers');
+
+    // List Booking -- jadwal booking ala Excel (tab Hari Ini / Semua Jadwal / Sudah Check-in / Batal),
+    // CRUD + import/export Excel. Datanya tabel bookings yang sama dengan reservasi.
+    // Route statis (create/export/import) HARUS di atas route {booking}.
+    Route::get('/list-booking', [BookingListController::class, 'index'])->name('operator.list-booking');
+    Route::get('/list-booking/create', [BookingListController::class, 'create'])->name('operator.list-booking.create');
+    Route::get('/list-booking/export', [BookingListController::class, 'export'])->name('operator.list-booking.export');
+    Route::post('/list-booking/import', [BookingListController::class, 'import'])->name('operator.list-booking.import');
+    Route::post('/list-booking', [BookingListController::class, 'store'])->name('operator.list-booking.store');
+    Route::get('/list-booking/{booking}/edit', [BookingListController::class, 'edit'])->name('operator.list-booking.edit');
+    Route::put('/list-booking/{booking}', [BookingListController::class, 'update'])->name('operator.list-booking.update');
+    Route::delete('/list-booking/{booking}', [BookingListController::class, 'destroy'])->name('operator.list-booking.destroy');
 
     // Khusus admin: pilih lokasi tempat "bertugas" sebelum masuk Panel CS
     // (CS/Kasir & Fotografer sudah otomatis ditugaskan, jadi tidak butuh ini).

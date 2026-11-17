@@ -41,6 +41,13 @@ class Booking extends Model
         'status',
         'booking_code',
         'ticket_id',
+        'source',
+        'univ',
+        'arrived_time',
+        'started_time',
+        'finished_time',
+        'needs_review',
+        'review_note',
     ];
 
     protected function casts(): array
@@ -53,6 +60,7 @@ class Booking extends Model
             'extras' => 'array',
             'dp_amount' => 'integer',
             'dp_forfeited' => 'boolean',
+            'needs_review' => 'boolean',
         ];
     }
 
@@ -71,7 +79,7 @@ class Booking extends Model
         return $this->belongsTo(Ticket::class);
     }
 
-    public static function generateBookingCode(Location $location): string
+    public static function generateBookingCode(Location $location, ?\Carbon\Carbon $forDate = null): string
     {
         // Sengaja BUKAN pakai kode lokasi lagi di kode reservasi (dulu
         // "BK-{kode lokasi}-{tanggal}-{urut}", jadi dobel "BK-BK-..." kalau
@@ -89,7 +97,8 @@ class Booking extends Model
         // sama-sama jadi "BK-20260813-001") -- lockForUpdate() di bawah
         // makanya juga ngunci lintas lokasi, biar generate-nya tetap aman
         // dari race condition walau dari 2 lokasi sekaligus.
-        $date = now()->format('Ymd');
+        // $forDate dipakai importer Excel supaya kode mengikuti tanggal booking-nya; default = hari ini.
+        $date = ($forDate ?? now())->format('Ymd');
         $prefix = "BK-{$date}-";
 
         $last = self::where('booking_code', 'like', $prefix . '%')

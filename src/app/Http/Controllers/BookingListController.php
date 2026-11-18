@@ -47,12 +47,16 @@ class BookingListController extends Controller
         if ($id && $locations->contains('id', $id)) {
             return $locations->firstWhere('id', $id);
         }
-        // Lokasi tetap user dipakai HANYA kalau lokasi itu menyediakan reservasi;
-        // kalau tidak (mis. CS di studio walk-in), arahkan ke lokasi reservasi
-        // supaya data booking tidak tampak kosong.
-        $own = $user->location_id ? $locations->firstWhere('id', $user->location_id) : null;
-        if ($own && $own->offersBooking()) {
-            return $own;
+        // Tanpa ?loc: pakai lokasi yang PUNYA DATA booking (paling banyak), supaya CS & admin
+        // sama-sama langsung melihat isi tabel walau lokasi tetap CS berbeda dengan lokasi import.
+        $counts = Booking::whereIn('location_id', $locations->pluck('id'))
+            ->selectRaw('location_id, count(*) as c')->groupBy('location_id')->pluck('c', 'location_id')->all();
+        if ($counts) {
+            arsort($counts);
+            $best = $locations->firstWhere('id', (int) array_key_first($counts));
+            if ($best) {
+                return $best;
+            }
         }
 
         return $locations->first(fn (Location $l) => $l->offersBooking()) ?? $locations->first();

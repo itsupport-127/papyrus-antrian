@@ -12,7 +12,75 @@
     <div class="xl:col-span-2 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
         <div class="px-4 py-3 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2">
             <a href="{{ $calUrl(['month' => $calendar['prev']]) }}" class="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700">&larr;</a>
-            <h2 class="font-bold text-slate-900 dark:text-white">{{ $calendar['first']->translatedFormat('F Y') }}</h2>
+            {{-- Pemilih bulan/tahun ala kalender Windows: klik judul -> pilih bulan; klik tahun -> pilih tahun (per dekade). --}}
+            <div class="relative" id="cal-picker" data-base="{{ route('operator.list-booking', ['tab' => 'calendar', 'loc' => $location->id]) }}"
+                 data-year="{{ $calendar['first']->format('Y') }}" data-month="{{ $calendar['first']->format('n') }}"
+                 data-now-year="{{ now()->format('Y') }}" data-now-month="{{ now()->format('n') }}">
+                <button type="button" id="cal-picker-btn" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-700">
+                    {{ $calendar['first']->translatedFormat('F Y') }}
+                    <svg class="w-4 h-4 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div id="cal-picker-panel" class="hidden absolute left-1/2 -translate-x-1/2 top-full mt-2 z-30 w-72 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-xl p-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <button type="button" id="cal-picker-title" class="px-2 py-1 rounded-lg text-sm font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-700"></button>
+                        <div class="flex items-center gap-1">
+                            <button type="button" id="cal-picker-up" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300" aria-label="Sebelumnya">&#9650;</button>
+                            <button type="button" id="cal-picker-down" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300" aria-label="Berikutnya">&#9660;</button>
+                        </div>
+                    </div>
+                    <div id="cal-picker-grid" class="grid grid-cols-4 gap-1"></div>
+                </div>
+            </div>
+            <script>
+            (function () {
+                const root = document.getElementById('cal-picker');
+                if (!root) return;
+                const btn = document.getElementById('cal-picker-btn');
+                const panel = document.getElementById('cal-picker-panel');
+                const title = document.getElementById('cal-picker-title');
+                const grid = document.getElementById('cal-picker-grid');
+                const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+                const selY = parseInt(root.dataset.year, 10), selM = parseInt(root.dataset.month, 10);
+                const nowY = parseInt(root.dataset.nowYear, 10), nowM = parseInt(root.dataset.nowMonth, 10);
+                let view = 'month', year = selY, decade = Math.floor(selY / 10) * 10;
+
+                const cell = (label, active, today, dim, onClick) => {
+                    const b = document.createElement('button');
+                    b.type = 'button';
+                    b.textContent = label;
+                    b.className = 'py-3 rounded-lg text-sm font-semibold transition-colors ' +
+                        (active ? 'bg-blue-600 text-white' : (today ? 'ring-1 ring-blue-500 text-slate-900 dark:text-white' : 'text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700')) +
+                        (dim && !active ? ' opacity-40' : '');
+                    b.addEventListener('click', onClick);
+                    grid.appendChild(b);
+                };
+
+                function render() {
+                    grid.innerHTML = '';
+                    if (view === 'month') {
+                        title.textContent = year;
+                        MONTHS.forEach((name, i) => cell(name, year === selY && i + 1 === selM, year === nowY && i + 1 === nowM, false, () => {
+                            window.location.href = root.dataset.base + '&month=' + year + '-' + String(i + 1).padStart(2, '0');
+                        }));
+                    } else {
+                        title.textContent = decade + ' - ' + (decade + 9);
+                        for (let y = decade - 1; y <= decade + 10; y++) {
+                            cell(y, y === selY, y === nowY, y < decade || y > decade + 9, () => { year = y; view = 'month'; render(); });
+                        }
+                    }
+                }
+
+                title.addEventListener('click', () => { if (view === 'month') { decade = Math.floor(year / 10) * 10; view = 'year'; render(); } });
+                document.getElementById('cal-picker-up').addEventListener('click', () => { view === 'month' ? year-- : decade -= 10; render(); });
+                document.getElementById('cal-picker-down').addEventListener('click', () => { view === 'month' ? year++ : decade += 10; render(); });
+                btn.addEventListener('click', () => {
+                    const open = panel.classList.toggle('hidden') === false;
+                    if (open) { view = 'month'; year = selY; render(); }
+                });
+                document.addEventListener('click', (e) => { if (!root.contains(e.target)) panel.classList.add('hidden'); });
+                document.addEventListener('keydown', (e) => { if (e.key === 'Escape') panel.classList.add('hidden'); });
+            })();
+            </script>
             <div class="flex items-center gap-2">
                 <a href="{{ $calUrl(['month' => now()->format('Y-m')]) }}" class="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700">Bulan ini</a>
                 <a href="{{ $calUrl(['month' => $calendar['next']]) }}" class="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700">&rarr;</a>

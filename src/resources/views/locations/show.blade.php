@@ -52,8 +52,33 @@
 
                 <!-- Waiting Queue -->
                 <div id="waiting-queue-panel" class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 mt-6">
+                    @if($myTicket)
+                        <div class="mb-5 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4 text-center">
+                            <p class="text-sm text-slate-600 dark:text-slate-400">Tiket Anda</p>
+                            <p class="text-3xl font-black text-blue-700 dark:text-blue-300">{{ $myTicket->ticket_number }}</p>
+                            @if($myTicket->status === 'waiting' && $myAhead !== null)
+                                <p class="text-sm text-slate-600 dark:text-slate-400 mt-1">{{ $myTicket->stageLabel() }}</p>
+                                @if($myAhead === 0)
+                                    <p class="mt-2 font-semibold text-emerald-700 dark:text-emerald-400">Anda berikutnya! Mohon jangan jauh-jauh.</p>
+                                @else
+                                    <p class="mt-2 text-lg font-bold text-slate-900 dark:text-white">Urutan ke-{{ $myAhead + 1 }} &middot; {{ $myAhead }} orang di depan Anda</p>
+                                    <p class="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                                        @if($myAhead <= 2)
+                                            Sebentar lagi giliran Anda, sebaiknya tetap di sekitar studio.
+                                        @elseif($myAhead <= 5)
+                                            Masih agak lama, boleh ke sekitar dulu tapi jangan terlalu jauh.
+                                        @else
+                                            Masih cukup lama, Anda bisa meninggalkan studio sebentar. Pantau halaman ini.
+                                        @endif
+                                    </p>
+                                @endif
+                            @else
+                                <p class="mt-2 text-sm text-slate-700 dark:text-slate-300">{{ $myTicket->customerStatusHint() ?? 'Pantau layar atau halaman tiket Anda.' }}</p>
+                            @endif
+                        </div>
+                    @endif
                     <h2 class="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-                        Antrian Menunggu
+                        Antrian Menunggu{{ $myTicket && $myTicket->status === 'waiting' ? ' - ' . $myTicket->stageLabel() : '' }}
                         <span class="text-sm font-normal text-slate-500 dark:text-slate-400">({{ $waitingTickets->count() }} orang)</span>
                     </h2>
 
@@ -62,7 +87,7 @@
                     @else
                         <div class="space-y-3">
                             @foreach($waitingTickets as $index => $ticket)
-                                <div class="flex items-center justify-between py-3 {{ !$loop->last ? 'border-b border-slate-100 dark:border-slate-700' : '' }}">
+                                <div class="flex items-center justify-between py-3 {{ !$loop->last ? 'border-b border-slate-100 dark:border-slate-700' : '' }} {{ $myTicket && $myTicket->id === $ticket->id ? 'bg-blue-50 dark:bg-blue-900/20 rounded-lg px-2 -mx-2' : '' }}">
                                     <div class="flex items-center space-x-4">
                                         <span class="w-8 h-8 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center text-sm font-medium text-slate-600 dark:text-slate-300">
                                             {{ $index + 1 }}
@@ -97,28 +122,7 @@
                                 {{ \Carbon\Carbon::parse($location->open_time)->format('H:i') }} - {{ \Carbon\Carbon::parse($location->close_time)->format('H:i') }}
                             </dd>
                         </div>
-                        <div class="flex justify-between">
-                            <dt class="text-slate-500 dark:text-slate-400">Loket Aktif</dt>
-                            <dd class="font-medium text-slate-900 dark:text-white">{{ $location->counters->count() }}</dd>
-                        </div>
                     </dl>
-                </div>
-
-                <!-- Counters -->
-                <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
-                    <h3 class="font-semibold text-slate-900 dark:text-white mb-4">Loket</h3>
-                    <div class="space-y-3">
-                        @foreach($location->counters as $counter)
-                            <div class="flex items-center justify-between py-2 {{ !$loop->last ? 'border-b border-slate-100 dark:border-slate-700' : '' }}">
-                                <span class="font-medium text-slate-900 dark:text-white">{{ $counter->name }}</span>
-                                @if($counter->currentOperator)
-                                    <span class="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-1 rounded">Aktif</span>
-                                @else
-                                    <span class="text-xs bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-2 py-1 rounded">Tidak Aktif</span>
-                                @endif
-                            </div>
-                        @endforeach
-                    </div>
                 </div>
 
                 <!-- Display Link -->

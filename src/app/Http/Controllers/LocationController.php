@@ -21,19 +21,32 @@ class LocationController extends Controller
         return view('locations.index', compact('locations'));
     }
 
-    public function show(Location $location): View
+    public function show(Request $request, Location $location): View
     {
-        $location->load(['counters' => function ($query) {
-            $query->where('is_active', true)->with('currentOperator');
-        }]);
-
         $waitingTickets = $location->waitingTickets()->get();
         $currentlyServing = $location->tickets()
             ->whereIn('status', ['calling', 'serving', 'editing'])
             ->with('counter')
             ->get();
 
-        return view('locations.show', compact('location', 'waitingTickets', 'currentlyServing'));
+        // Dibuka dari tiket pelanggan (?ticket=PP-041): tampilkan antrian di
+        // TAHAP/SESI tiket itu saja + posisi pelanggan, supaya dia tahu masih
+        // lama atau sebentar lagi. Tanpa parameter = tampilan umum seperti biasa.
+        $myTicket = null;
+        $myAhead = null;
+        $ticketNo = trim((string) $request->query('ticket', ''));
+        if ($ticketNo !== '') {
+            $myTicket = $location->tickets()->where('ticket_number', $ticketNo)->latest('id')->first();
+        }
+        if ($myTicket) {
+            if ($myTicket->status === 'waiting') {
+                $waitingTickets = $waitingTickets->where('stage', $myTicket->stage)->values();
+                $idx = $waitingTickets->search(fn ($t) => $t->id === $myTicket->id);
+                $myAhead = $idx === false ? null : $idx;
+            }
+        }
+
+        return view('locations.show', compact('location', 'waitingTickets', 'currentlyServing', 'myTicket', 'myAhead'));
     }
 
     public function display(Location $location): View

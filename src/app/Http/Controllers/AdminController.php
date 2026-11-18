@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AccessGroup;
 use App\Models\BookingSlot;
 use App\Models\Counter;
 use App\Services\BookingSlotService;
@@ -241,10 +242,56 @@ class AdminController extends Controller
     // User Management
     public function users(): View
     {
-        $users = User::with('location', 'preferredCounter.location')->get();
+        $users = User::with('location', 'preferredCounter.location', 'accessGroup')->get();
+        $accessGroups = AccessGroup::orderBy('name')->get();
         $locations = Location::where('is_active', true)->get();
         $counters = Counter::with('location')->whereHas('location', fn ($q) => $q->where('is_active', true))->get();
-        return view('admin.users.index', compact('users', 'locations', 'counters'));
+        return view('admin.users.index', compact('users', 'locations', 'counters', 'accessGroups'));
+    }
+
+    // ---- Grup hak akses ----
+
+    public function accessGroups(): View
+    {
+        $groups = AccessGroup::withCount('users')->orderBy('name')->get();
+        $catalog = AccessGroup::catalogByCategory();
+
+        return view('admin.access-groups.index', compact('groups', 'catalog'));
+    }
+
+    private function validatedGroup(Request $request, ?AccessGroup $group = null): array
+    {
+        $v = $request->validate([
+            'name' => ['required', 'string', 'max:100', Rule::unique('access_groups', 'name')->ignore($group?->id)],
+            'description' => ['nullable', 'string', 'max:255'],
+            'permissions' => ['array'],
+            'permissions.*' => ['string', Rule::in(array_keys(AccessGroup::catalog()))],
+        ]);
+        $v['permissions'] = array_keys($v['permissions'] ?? []);
+
+        return $v;
+    }
+
+    public function storeAccessGroup(Request $request): RedirectResponse
+    {
+        $group = AccessGroup::create($this->validatedGroup($request));
+
+        return back()->with('success', "Grup \"{$group->name}\" dibuat.");
+    }
+
+    public function updateAccessGroup(Request $request, AccessGroup $accessGroup): RedirectResponse
+    {
+        $accessGroup->update($this->validatedGroup($request, $accessGroup));
+
+        return back()->with('success', "Grup \"{$accessGroup->name}\" diperbarui.");
+    }
+
+    public function destroyAccessGroup(AccessGroup $accessGroup): RedirectResponse
+    {
+        $name = $accessGroup->name;
+        $accessGroup->delete(); // user di grup ini otomatis jadi tanpa grup
+
+        return back()->with('success', "Grup \"{$name}\" dihapus.");
     }
 
     public function storeUser(Request $request): RedirectResponse
@@ -255,6 +302,7 @@ class AdminController extends Controller
             'password' => ['required', 'string', 'min:8'],
             'role' => ['required', 'in:admin,operator,fotografer,viewer'],
             'preferred_counter_id' => ['nullable', 'exists:counters,id'],
+            'access_group_id' => ['nullable', 'exists:access_groups,id'],
         ]);
 
         // Gak ada lagi field Lokasi terpisah -- lokasi kerja otomatis
@@ -282,6 +330,7 @@ class AdminController extends Controller
             'password' => ['nullable', 'string', 'min:8'],
             'role' => ['required', 'in:admin,operator,fotografer,viewer'],
             'preferred_counter_id' => ['nullable', 'exists:counters,id'],
+            'access_group_id' => ['nullable', 'exists:access_groups,id'],
             'permissions' => ['array'],
             'permissions.*' => ['string'],
         ]);

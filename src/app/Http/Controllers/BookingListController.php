@@ -12,6 +12,7 @@ use App\Services\BookingListImporter;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -28,8 +29,8 @@ class BookingListController extends Controller
     private function staff(): User
     {
         $user = auth()->user();
-        if (!$user->isOperator() && !$user->isAdmin()) {
-            abort(403, 'Hanya CS & Kasir atau Admin yang dapat membuka List Booking.');
+        if (!$user->isAdmin() && !$user->hasPermission('list_booking')) {
+            abort(403, 'Kamu belum punya hak akses List Booking.');
         }
 
         return $user;
@@ -46,11 +47,25 @@ class BookingListController extends Controller
         if ($id && $locations->contains('id', $id)) {
             return $locations->firstWhere('id', $id);
         }
-        if ($user->location_id && $locations->contains('id', $user->location_id)) {
-            return $locations->firstWhere('id', $user->location_id);
+        // Lokasi tetap user dipakai HANYA kalau lokasi itu menyediakan reservasi;
+        // kalau tidak (mis. CS di studio walk-in), arahkan ke lokasi reservasi
+        // supaya data booking tidak tampak kosong.
+        $own = $user->location_id ? $locations->firstWhere('id', $user->location_id) : null;
+        if ($own && $own->offersBooking()) {
+            return $own;
         }
 
         return $locations->first(fn (Location $l) => $l->offersBooking()) ?? $locations->first();
+    }
+
+    /** Tabel hari wisuda baru ada setelah `php artisan migrate`; sebelum itu halaman tetap harus terbuka. */
+    private function graduationsReady(): bool
+    {
+        try {
+            return Schema::hasTable('graduation_days');
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     private function ownBooking(User $user, Booking $booking): void
@@ -146,8 +161,15 @@ class BookingListController extends Controller
         $graduations = collect();
         if ($tab !== 'calendar') {
             $bookings = $this->query($request, $location, $tab, $month)->paginate(100)->withQueryString();
-            $dates = $bookings->getCollection()->map(fn (Booking $b) => $b->booking_date->format('Y-m-d'))->push(today()->format('Y-m-d'))->unique()->values()->all();
-            $graduations = GraduationDay::whereIn('date', $dates)->get()->groupBy(fn (GraduationDay $g) => $g->date->format('Y-m-d'));
+            // Array biasa (bukan ->map()->unique() di Eloquent Collection: kalau kosong, unique() error "getKey() on string").
+            $dates = [today()->format('Y-m-d')];
+            foreach ($bookings as $b) {
+                $dates[] = $b->booking_date->format('Y-m-d');
+            }
+            $dates = array_values(array_unique($dates));
+            if ($this->graduationsReady()) {
+                $graduations = GraduationDay::whereIn('date', $dates)->get()->groupBy(fn (GraduationDay $g) => $g->date->format('Y-m-d'));
+            }
         }
 
         $base = Booking::where('location_id', $location->id);
@@ -196,7 +218,8 @@ class BookingListController extends Controller
             ->orderBy('booking_time')->get();
         $byDay = $monthBookings->groupBy(fn (Booking $b) => $b->booking_date->format('Y-m-d'));
 
-        $gradByDay = GraduationDay::whereBetween('date', [$first->toDateString(), $last->toDateString()])
+        $ready = $this->graduationsReady();
+        $gradByDay = !$ready ? collect() : GraduationDay::whereBetween('date', [$first->toDateString(), $last->toDateString()])
             ->orderBy('campus')->get()->groupBy(fn (GraduationDay $g) => $g->date->format('Y-m-d'));
 
         // Grid minggu Senin-Minggu.
@@ -232,14 +255,18 @@ class BookingListController extends Controller
             'weeks' => $weeks,
             'selected' => $selected,
             'selected_bookings' => $selected ? $byDay->get($selected, collect()) : collect(),
-            'selected_grads' => $selected ? ($gradByDay->get($selected) ?? GraduationDay::whereDate('date', $selected)->get()) : collect(),
-            'upcoming' => GraduationDay::where('date', '>=', today()->toDateString())->orderBy('date')->orderBy('campus')->limit(15)->get(),
+            'selected_grads' => $selected ? ($gradByDay->get($selected) ?? ($ready ? GraduationDay::whereDate('date', $selected)->get() : collect())) : collect(),
+            'upcoming' => $ready ? GraduationDay::where('date', '>=', today()->toDateString())->orderBy('date')->orderBy('campus')->limit(15)->get() : collect(),
+            'graduation_ready' => $ready,
         ];
     }
 
     public function storeGraduation(Request $request): RedirectResponse
     {
         $user = $this->staff();
+        if (!$this->graduationsReady()) {
+            return back()->with('error', 'Tabel hari wisuda belum dibuat. Jalankan: php artisan migrate --force');
+        }
         $data = $request->validate([
             'date' => ['required', 'date'],
             'campus' => ['required', 'string', 'max:120'],
@@ -291,7 +318,7 @@ class BookingListController extends Controller
         $location = $this->pickLocation($request, $user, $locations);
         abort_if(!$location, 404);
 
-        $data = $this->validated($request);
+        $data = $this->validated($request, true);
         $data['status'] = $data['status'] ?? 'confirmed';
         $date = Carbon::parse($data['booking_date']);
 
@@ -401,13 +428,13 @@ class BookingListController extends Controller
         $month = (string) $request->input('month', 'all');
         $bookings = $this->query($request, $location, $tab === 'calendar' ? 'all' : $tab, $month)->get();
 
-        $graduations = GraduationDay::all()->groupBy(fn (GraduationDay $g) => $g->date->format('Y-m-d'));
+        $graduations = !$this->graduationsReady() ? collect() : GraduationDay::all()->groupBy(fn (GraduationDay $g) => $g->date->format('Y-m-d'));
 
         return $excel->download($bookings, 'list-booking-' . str($location->name)->slug() . '-' . now()->format('Ymd-His') . '.xlsx', $graduations);
     }
 
     /** @return array<string, mixed> */
-    private function validated(Request $request): array
+    private function validated(Request $request, bool $isCreate = false): array
     {
         $request->merge([
             'order_code' => $request->filled('order_code') ? strtoupper(preg_replace('/\s+/', '', (string) $request->input('order_code'))) : null,
@@ -422,7 +449,8 @@ class BookingListController extends Controller
             'booking_time' => ['required', 'date_format:H:i'],
             'package_name' => ['required', 'string', 'max:100'],
             'people_count' => ['nullable', 'integer', 'min:0', 'max:1000'],
-            'customer_phone' => ['nullable', 'string', 'max:20', 'regex:/^\+?[0-9]{8,15}$/'],
+            // Wajib saat menambah booking baru; saat edit boleh kosong (booking hasil import Excel tidak punya no. telp).
+            'customer_phone' => [$isCreate ? 'required' : 'nullable', 'string', 'max:20', 'regex:/^\+?[0-9]{8,15}$/'],
             'univ' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'arrived_time' => ['nullable', 'date_format:H:i'],
@@ -437,6 +465,7 @@ class BookingListController extends Controller
             'booking_date.required' => 'Isi tanggal booking.',
             'booking_time.required' => 'Isi jam booking.',
             'booking_time.date_format' => 'Jam harus berformat JJ:MM, mis. 09:30.',
+            'customer_phone.required' => 'Isi no. telepon.',
             'customer_phone.regex' => 'No. telepon: hanya angka (boleh diawali +), 8-15 digit.',
         ]);
 

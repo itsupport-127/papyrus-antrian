@@ -28,6 +28,7 @@ class User extends Authenticatable
         'location_id',
         'preferred_counter_id',
         'permissions',
+        'access_group_id',
         'avatar_path',
     ];
 
@@ -82,8 +83,8 @@ class User extends Authenticatable
     public function getDefaultPermissions(): array
     {
         return match ($this->role) {
-            'admin' => ['walkin', 'booking', 'photo', 'payment', 'customers', 'all_locations'],
-            'operator' => ['walkin', 'booking', 'payment', 'customers'],
+            'admin' => ['walkin', 'booking', 'photo', 'payment', 'customers', 'all_locations', 'list_booking'],
+            'operator' => ['walkin', 'booking', 'payment', 'customers', 'list_booking'],
             'fotografer' => ['photo', 'walkin', 'customers', 'booking'],
             'viewer' => ['customers'],
             default => [],
@@ -92,7 +93,16 @@ class User extends Authenticatable
 
     public function getPermissions(): array
     {
-        return array_values(array_unique(array_merge($this->getDefaultPermissions(), $this->permissions ?? [])));
+        return array_values(array_unique(array_merge(
+            $this->getDefaultPermissions(),
+            $this->accessGroup?->permissions ?? [],
+            $this->permissions ?? []
+        )));
+    }
+
+    public function accessGroup(): BelongsTo
+    {
+        return $this->belongsTo(AccessGroup::class);
     }
 
     public function location(): BelongsTo

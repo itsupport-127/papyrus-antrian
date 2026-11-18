@@ -225,7 +225,7 @@
                                                 $rowColor = $dayIdx % 2 === 0 ? '#CCCCCC' : '#B7B7B7';
                                                 if ($b->status === 'cancelled') { $rowColor = '#F4CCCC'; }
                                                 elseif (preg_match('/resc?hedule/i', (string) $b->notes)) { $rowColor = '#FCE5CD'; }
-                                                $canCheckIn = !$b->ticket_id && in_array($b->status, ['pending', 'confirmed'], true) && $b->booking_date->isToday();
+                                                $canCheckIn = (auth()->user()->isOperator() || auth()->user()->isAdmin()) && !$b->ticket_id && in_array($b->status, ['pending', 'confirmed'], true) && $b->booking_date->isToday();
                                                 $payload = [
                                                     'id' => $b->id,
                                                     'order_code' => $b->order_code,
@@ -337,6 +337,11 @@
                     </div>
                 </div>
 
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">No. Telepon <span id="bm-phone-star" class="text-red-500">*</span></label>
+                    <input type="text" name="customer_phone" id="bm-customer_phone" value="{{ old('customer_phone') }}" inputmode="tel" placeholder="08123456789" required class="{{ $inputCls }}">
+                </div>
+
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tanggal Booking <span class="text-red-500">*</span></label>
@@ -356,14 +361,10 @@
                 <details class="rounded-lg border border-slate-200 dark:border-slate-700" {{ $reopenModal ? 'open' : '' }}>
                     <summary class="cursor-pointer px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300">Data tambahan (opsional)</summary>
                     <div class="p-4 space-y-4 border-t border-slate-100 dark:border-slate-700">
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Jumlah Orang</label>
                                 <input type="number" name="people_count" id="bm-people_count" min="0" max="1000" value="{{ old('people_count') }}" class="{{ $inputCls }}">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">No. Telepon</label>
-                                <input type="text" name="customer_phone" id="bm-customer_phone" value="{{ old('customer_phone') }}" class="{{ $inputCls }}">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">UNIV / Instansi</label>
@@ -428,6 +429,8 @@
                 $('bm-method').disabled = !edit;
                 $('bm-mode').value = edit ? 'edit' : 'add';
                 $('bm-edit-id').value = edit ? data.id : '';
+                $('bm-customer_phone').required = !edit;   // no. telp wajib saat tambah; booking lama (hasil import) boleh kosong
+                $('bm-phone-star').classList.toggle('hidden', edit);
 
                 fields.forEach(function (f) {
                     const el = $('bm-' + f);
@@ -460,6 +463,8 @@
                     form.action = form.dataset.updateUrl.replace('__ID__', id);
                     $('bm-method').disabled = false;
                     $('bm-title').textContent = 'Edit Booking';
+                    $('bm-customer_phone').required = false;
+                    $('bm-phone-star').classList.add('hidden');
                 }
             })();
             @endif

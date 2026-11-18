@@ -165,37 +165,29 @@
                                                                 @endforeach
                                                             </select>
                                                         </div>
+                                                    <div>
+                                                            <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Grup Akses</label>
+                                                            <select name="access_group_id" class="w-full text-sm border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded px-2 py-1.5">
+                                                                <option value="">-- Tanpa grup --</option>
+                                                                @foreach($accessGroups as $g)
+                                                                    <option value="{{ $g->id }}" {{ $user->access_group_id === $g->id ? 'selected' : '' }}>{{ $g->name }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                        </div>
                                                     </div>
 
                                                     <div>
                                                         @php $perms = $user->permissions ?? []; @endphp
                                                         <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">Hak akses</label>
                                                         <div class="flex flex-wrap gap-3">
-                                                            <label class="inline-flex items-center space-x-1 text-xs text-slate-700 dark:text-slate-300">
-                                                                <input type="checkbox" name="permissions[walkin]" value="1" class="rounded" {{ in_array('walkin', $perms) ? 'checked' : '' }}>
-                                                                <span>Walk-in</span>
-                                                            </label>
-                                                            <label class="inline-flex items-center space-x-1 text-xs text-slate-700 dark:text-slate-300">
-                                                                <input type="checkbox" name="permissions[booking]" value="1" class="rounded" {{ in_array('booking', $perms) ? 'checked' : '' }}>
-                                                                <span>Reservasi</span>
-                                                            </label>
-                                                            <label class="inline-flex items-center space-x-1 text-xs text-slate-700 dark:text-slate-300">
-                                                                <input type="checkbox" name="permissions[photo]" value="1" class="rounded" {{ in_array('photo', $perms) ? 'checked' : '' }}>
-                                                                <span>Panggil Foto</span>
-                                                            </label>
-                                                            <label class="inline-flex items-center space-x-1 text-xs text-slate-700 dark:text-slate-300">
-                                                                <input type="checkbox" name="permissions[payment]" value="1" class="rounded" {{ in_array('payment', $perms) ? 'checked' : '' }}>
-                                                                <span>Pembayaran</span>
-                                                            </label>
-                                                            <label class="inline-flex items-center space-x-1 text-xs text-slate-700 dark:text-slate-300">
-                                                                <input type="checkbox" name="permissions[customers]" value="1" class="rounded" {{ in_array('customers', $perms) ? 'checked' : '' }}>
-                                                                <span>Data Pelanggan</span>
-                                                            </label>
-                                                            <label class="inline-flex items-center space-x-1 text-xs text-slate-700 dark:text-slate-300">
-                                                                <input type="checkbox" name="permissions[all_locations]" value="1" class="rounded" {{ in_array('all_locations', $perms) ? 'checked' : '' }}>
-                                                                <span>Semua Lokasi</span>
-                                                            </label>
+                                                            @foreach(\App\Models\AccessGroup::catalog() as $pKey => [$pLabel])
+                                                                <label class="inline-flex items-center space-x-1 text-xs text-slate-700 dark:text-slate-300">
+                                                                    <input type="checkbox" name="permissions[{{ $pKey }}]" value="1" class="rounded" {{ in_array($pKey, $perms) ? 'checked' : '' }}>
+                                                                    <span>{{ Str::before($pLabel, ' (') }}</span>
+                                                                </label>
+                                                            @endforeach
                                                         </div>
+                                                        <p class="text-[11px] text-slate-400 mt-1">Tambahan di luar hak bawaan role &amp; grup akses.</p>
                                                     </div>
 
                                                     <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-700">

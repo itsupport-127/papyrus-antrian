@@ -1431,6 +1431,12 @@
                                 Data Pelanggan
                             </button>
                         @endif
+                        @if(in_array('list_booking', $permissions))
+                            <a href="{{ route('operator.list-booking') }}" class="ml-auto inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 text-xs font-semibold">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18M10 3v18M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
+                                List Booking
+                            </a>
+                        @endif
                     </div>
                 @endif
             </div>
@@ -3537,10 +3543,12 @@
                                         <span>Jadwal Reservasi</span>
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2v12a2 2 0 002 2z"/></svg>
                                     </a>
+                                    @if(in_array('list_booking', $permissions))
                                     <a href="{{ route('operator.list-booking') }}" class="flex items-center justify-between w-full border border-slate-200 dark:border-slate-600 hover:border-slate-300 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg text-xs font-semibold transition-colors">
                                         <span>List Booking</span>
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18M10 3v18M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
                                     </a>
+                                    @endif
                                 @endif
                                 @if(auth()->user()->isOperator() || auth()->user()->isFotografer() || auth()->user()->isAdmin())
                                     <a href="{{ route('operator.release-counter') }}" class="flex items-center justify-between w-full border border-dashed border-slate-300 dark:border-slate-600 hover:border-slate-400 text-slate-500 dark:text-slate-400 px-3 py-2 rounded-lg text-xs font-semibold transition-colors">

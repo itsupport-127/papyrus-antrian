@@ -226,6 +226,12 @@ Route::middleware(['auth', EnsureUserIsAdmin::class])->prefix('admin')->group(fu
     Route::put('/users/{user}', [AdminController::class, 'updateUser'])->name('admin.users.update');
     Route::delete('/users/{user}', [AdminController::class, 'destroyUser'])->name('admin.users.destroy');
 
+    // Grup hak akses
+    Route::get('/access-groups', [AdminController::class, 'accessGroups'])->name('admin.access-groups');
+    Route::post('/access-groups', [AdminController::class, 'storeAccessGroup'])->name('admin.access-groups.store');
+    Route::put('/access-groups/{accessGroup}', [AdminController::class, 'updateAccessGroup'])->name('admin.access-groups.update');
+    Route::delete('/access-groups/{accessGroup}', [AdminController::class, 'destroyAccessGroup'])->name('admin.access-groups.destroy');
+
     // Reports
     Route::get('/reports', [ReportController::class, 'index'])->name('admin.reports');
     Route::get('/reports/staff', [ReportController::class, 'staffIndex'])->name('admin.reports.staff.index');

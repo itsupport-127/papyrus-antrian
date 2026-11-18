@@ -62,8 +62,8 @@
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">No. Telepon (opsional)</label>
-                                <input type="text" name="customer_phone" value="{{ $field('customer_phone', $booking->customer_phone) }}" class="{{ $cls }}">
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">No. Telepon @if(!$isEdit)<span class="text-red-500">*</span>@else <span>(opsional)</span> @endif</label>
+                                <input type="text" name="customer_phone" @if(!$isEdit) required @endif value="{{ $field('customer_phone', $booking->customer_phone) }}" class="{{ $cls }}">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">UNIV / Instansi (opsional)</label>

@@ -55,8 +55,8 @@ class BookingListImporter
 
         $dates = array_column($parsed, 'booking_date');
         $existing = [];
-        Booking::where('location_id', $location->id)
-            ->whereBetween('booking_date', [min($dates), max($dates)])
+        // Dedup lintas SEMUA lokasi: import yang sama di lokasi lain tidak boleh bikin data ganda.
+        Booking::whereBetween('booking_date', [min($dates), max($dates)])
             ->get(['order_code', 'customer_name', 'booking_date', 'booking_time'])
             ->each(function (Booking $b) use (&$existing) {
                 $existing[$this->key($b->order_code, $b->customer_name, $b->booking_date->format('Y-m-d'), $b->booking_time->format('H:i'))] = true;

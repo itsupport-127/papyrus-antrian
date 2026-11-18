@@ -40,7 +40,11 @@ class BookingListController extends Controller
     {
         // List Booking khusus reservasi: hanya lokasi yang menyediakan reservasi (bukan studio walk-in).
         $all = Location::whereIn('id', $user->manageableLocationIds())->orderBy('name')->get();
-        $booking = $all->filter(fn (Location $l) => $l->offersBooking())->values();
+        // Utamakan lokasi KHUSUS reservasi (service_type = booking, mis. BK); lokasi 'both' (mis. PP) hanya cadangan.
+        $booking = $all->filter(fn (Location $l) => $l->service_type === 'booking')->values();
+        if ($booking->isEmpty()) {
+            $booking = $all->filter(fn (Location $l) => $l->offersBooking())->values();
+        }
 
         return $booking->isNotEmpty() ? $booking : $all;
     }

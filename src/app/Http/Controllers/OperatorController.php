@@ -158,8 +158,9 @@ class OperatorController extends Controller
             [$custBookings, $bookingSearch, $bookingDate, $bookingStaff] = $this->filteredCustomerBookings($request, $location, $scopeLocationIds);
         }
 
-        // Semua reservasi yang belum selesai sesuai scope.
+        // Reservasi HARI INI yang belum diproses (jadwal ke depan ada di menu List Booking).
         $todayBookings = Booking::whereIn('location_id', $scopeLocationIds)
+            ->whereDate('booking_date', today())
             ->whereIn('status', ['pending', 'confirmed'])
             ->orderBy('booking_date')
             ->orderBy('booking_time')

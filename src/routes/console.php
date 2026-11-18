@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 // Reset antrian setiap hari pukul 00:05
 Schedule::command('queue:reset-daily')->dailyAt('00:05');
+
+// Akhir hari: reservasi yang tidak check-in -> batal otomatis (tanpa keterangan) / ditandai perlu dicek (ada keterangan)
+Schedule::command('bookings:close-day')->dailyAt('23:55');

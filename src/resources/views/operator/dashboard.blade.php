@@ -3313,7 +3313,7 @@
                             <div class="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between gap-3">
                                 <div>
                                     <h2 class="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">Reservasi Hari Ini</h2>
-                                    <p class="text-slate-500 dark:text-slate-400 text-sm mt-0.5">{{ $todayBookings->count() }} reservasi aktif</p>
+                                    <p class="text-slate-500 dark:text-slate-400 text-sm mt-0.5">{{ $todayBookings->count() }} reservasi hari ini &middot; jadwal ke depan ada di <a href="{{ route('operator.list-booking') }}" class="underline">List Booking</a></p>
                                 </div>
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 flex-shrink-0">Reservasi</span>
                                 @if($canManageBookings)

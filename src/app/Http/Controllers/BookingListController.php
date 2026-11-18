@@ -38,7 +38,11 @@ class BookingListController extends Controller
 
     private function locationsFor(User $user)
     {
-        return Location::whereIn('id', $user->manageableLocationIds())->orderBy('name')->get();
+        // List Booking khusus reservasi: hanya lokasi yang menyediakan reservasi (bukan studio walk-in).
+        $all = Location::whereIn('id', $user->manageableLocationIds())->orderBy('name')->get();
+        $booking = $all->filter(fn (Location $l) => $l->offersBooking())->values();
+
+        return $booking->isNotEmpty() ? $booking : $all;
     }
 
     private function pickLocation(Request $request, User $user, $locations): ?Location

@@ -236,7 +236,7 @@
 
         <!-- Main Content -->
         <main class="flex-1 flex flex-col pt-6 sm:pt-7 md:pt-9 lg:pt-11 tv:pt-7">
-            <div id="queue-board" data-cols="{{ $selectingDisplay->isNotEmpty() ? 4 : 3 }}" class="grid grid-cols-1 md:portrait:grid-cols-1 md:landscape:grid-cols-3 lg:grid-cols-3 tv:grid-cols-3 gap-4 sm:gap-5 lg:gap-6 tv:gap-3 flex-1 md:min-h-0">
+            <div id="queue-board" data-cols="{{ $selectingDisplay->isNotEmpty() ? 4 : 3 }}" class="grid grid-cols-1 md:portrait:grid-cols-1 md:landscape:grid-cols-3 lg:grid-cols-3 tv:grid-cols-3 gap-x-4 sm:gap-x-5 lg:gap-x-6 tv:gap-x-3 gap-y-12 sm:gap-y-14 md:portrait:gap-y-16 md:landscape:gap-y-5 lg:gap-y-6 tv:gap-y-3 flex-1 md:min-h-0">
                     {{-- Data panggilan untuk pengumuman CADANGAN lewat polling (lihat announceNewCallsFromPoll di bawah). --}}
                     @php
                         $callEvents = collect();

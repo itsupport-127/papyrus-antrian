@@ -32,17 +32,7 @@
             {{-- Navigasi cepat + lokasi --}}
             <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <a href="{{ $backUrl }}" class="text-sm font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white">&larr; {{ $backLabel }}</a>
-                @if($locations->count() > 1)
-                    <form method="GET" action="{{ route('operator.list-booking') }}" class="flex items-center gap-2">
-                        <input type="hidden" name="tab" value="{{ $tab }}">
-                        <label class="text-sm text-slate-600 dark:text-slate-300">Lokasi</label>
-                        <select name="loc" onchange="this.form.submit()" class="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-700 dark:text-white text-sm">
-                            @foreach($locations as $l)
-                                <option value="{{ $l->id }}" @selected($l->id === $location->id)>{{ $l->name }}</option>
-                            @endforeach
-                        </select>
-                    </form>
-                @endif
+                <span class="text-sm text-slate-500 dark:text-slate-400">{{ $location->name }}</span>
             </div>
 
             @if(session('success'))

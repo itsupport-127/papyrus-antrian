@@ -43,7 +43,7 @@
             @endif
 
             {{-- Tab --}}
-            <div class="flex items-center gap-1 overflow-x-auto pb-3">
+            <div id="list-tabs" class="flex items-center gap-1 overflow-x-auto pb-3">
                 @foreach($tabs as $key => $label)
                     <a href="{{ $tabUrl($key) }}" class="{{ $tab === $key ? 'text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 font-semibold' : 'text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 font-medium' }} px-4 py-2 text-sm rounded-lg whitespace-nowrap shrink-0">
                         {{ $label }}
@@ -492,6 +492,36 @@
                 });
                 filter.addEventListener('change', function (e) { if (e.target !== search) { clearTimeout(timer); run(); } });
             }
+
+            // ---- Update LIVE tanpa muat ulang halaman: tiap 5 detik ambil data terbaru (sesuai filter/tab yang sedang dibuka)
+            // lalu ganti isi tabel + angka tab. Dilewati saat popup terbuka / tab browser tidak terlihat / sedang mengetik.
+            (function () {
+                if (new URLSearchParams(location.search).get('tab') === 'calendar') return;
+                let busy = false;
+                let lastHtml = '';
+                const tick = function () {
+                    const cur = document.getElementById('list-results');
+                    if (!cur || busy || document.hidden) return;
+                    if (!modal.classList.contains('hidden')) return;
+                    if (document.activeElement && document.activeElement.id === 'list-search') return;
+                    busy = true;
+                    fetch(location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin', cache: 'no-store' })
+                        .then(function (r) { return r.ok ? r.text() : Promise.reject(); })
+                        .then(function (html) {
+                            const doc = new DOMParser().parseFromString(html, 'text/html');
+                            const fresh = doc.getElementById('list-results');
+                            if (!fresh || fresh.innerHTML === lastHtml) return;
+                            lastHtml = fresh.innerHTML;
+                            if (fresh.innerHTML !== cur.innerHTML) cur.innerHTML = fresh.innerHTML;
+                            const tabs = doc.getElementById('list-tabs'), curTabs = document.getElementById('list-tabs');
+                            if (tabs && curTabs && tabs.innerHTML !== curTabs.innerHTML) curTabs.innerHTML = tabs.innerHTML;
+                        })
+                        .catch(function () { /* diam, coba lagi 5 detik berikutnya */ })
+                        .finally(function () { busy = false; });
+                };
+                setInterval(tick, 5000);
+                document.addEventListener('visibilitychange', function () { if (!document.hidden) tick(); });
+            })();
         })();
     </script>
 </x-layout>
